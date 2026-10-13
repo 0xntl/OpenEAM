@@ -1,5 +1,3 @@
-# OpenEAM
-
 ![OpenEAM](docs/images/logo.svg)
 
 Self-hosted, open-source Enterprise Architecture Management.
