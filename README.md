@@ -1,52 +1,35 @@
 # OpenEAM
 
-<p>
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/brand/logo-white.svg">
-    <img src="apps/web/public/brand/logo.svg" alt="OpenEAM" height="40">
-  </picture>
-</p>
+![OpenEAM](docs/images/logo.svg)
 
 Self-hosted, open-source Enterprise Architecture Management.
 
+> [!WARNING]
+> Early stage. There is no release yet; the schema, the bundle format and the
+> API can still change without notice. Run it to explore, not to depend on.
+
 ![The architecture landscape of a fictional SaaS company, showing services nested inside the platforms they run on](docs/images/landscape.png)
 
-Enterprise architecture tools tend to be expensive, hosted by somebody else, and
-shaped around a methodology you have to adopt whole. OpenEAM is a small
-self-hosted alternative: model what your organization is able to do — its
-capabilities, value streams and processes — map that to the systems actually
-realizing it, and keep the two connected as both change. Everything is scoped to
-an **enterprise**, the scope of one architecture effort, which can be a corporate
-group, a single department, or a household.
+Model what your organization is able to do (capabilities, value streams,
+processes), map that to the systems realizing it, and keep both connected as
+they change. Everything is scoped to an **enterprise**: a corporate group, a
+department, or a household.
 
-## The part that makes it different
-
-Every relationship in the model carries a validity interval. So the landscape is
-not a picture of today that you edit over time — it is reconstructible for **any
-date**, and the `as of` control in the screenshot above is not a filter. Set it to
-last year and you see what ran where last year, including the systems that have
-since been retired.
-
-That turns questions architects normally answer from memory into questions the
-model answers: *what is still running on the platform we are switching off, and
-what breaks if we do?*
+Every relationship carries a validity interval, so the landscape is
+reconstructible for **any date**. Set `as of` to last year and you see what ran
+where last year, retired systems included. *What still runs on the platform we
+are switching off, and what breaks if we do?* becomes a question the model
+answers.
 
 ## What works today
 
-Business capabilities, value streams with stages, and business processes with
-real BPMN modelling. An architecture landscape of building blocks — split into
-architecture building blocks (the need) and solution building blocks (the product
-meeting it) — with typed relationships between them (*depends on*, *exchanges data
-with*, *runs on*), automatic diagram layout, and export/import of a whole
-enterprise as a JSON bundle. A building block can carry an icon, a product's
-logo or a generic glyph, served by the instance itself.
+- Business capabilities, value streams with stages, business processes with BPMN modelling
+- Building blocks (architecture and solution), typed relationships, auto-laid-out landscape diagram, icons
+- Export and import of a whole enterprise as a JSON bundle
+- Accounts with roles per enterprise (owner, editor, viewer); the first account is the instance admin
+- Instance branding: name, logo and icon
 
-Accounts and sign-in are built in: people sign in with an email and password,
-each enterprise is visible only to its members, and the first account is the
-instance admin who creates further accounts and decides who reaches which
-enterprise. Within an enterprise, members are owners, editors or viewers. The
-admin can give the instance its own name and logo. See
-[docs/BACKLOG.md](docs/BACKLOG.md) for what else is known to be missing.
+What is known to be missing is in [docs/BACKLOG.md](docs/BACKLOG.md).
 
 ## Run it
 
@@ -57,11 +40,8 @@ cp .env.example .env   # set POSTGRES_PASSWORD; OPENEAM_PORT if 8080 is taken
 docker compose --profile app up -d --build
 ```
 
-Open http://localhost:8080 and create the first account — it becomes the
-instance admin. From its Administration page you create accounts for
-colleagues (each gets a one-time setup link to choose their own password) or
-open sign-up, and give each account its enterprises and roles. Owners can
-also add people from the enterprise's edit sheet. Set
+Open http://localhost:8080 and create the first account; it becomes the
+instance admin, who creates further accounts from the Administration page. Set
 `AUTH_COOKIE_SECURE=true` once the instance is behind TLS.
 
 ### For development
@@ -82,8 +62,10 @@ pnpm dev
 
 ## See it with data
 
-Two example models live in [examples/](examples/). Sign in once to get a token,
-then `POST` either to `/api/data-exchange/import`:
+Two example models live in [examples/](examples/): [`household.json`](examples/household.json),
+the smallest model that still shows the metamodel, and
+[`alderbrook.json`](examples/alderbrook.json), a fictional SaaS company mid-way
+through a platform migration. Sign in once for a token, then import:
 
 ```bash
 TOKEN=$(curl -s http://localhost:4000/graphql -H "Content-Type: application/json" \
@@ -96,34 +78,16 @@ curl -X POST http://localhost:4000/api/data-exchange/import \
   --data-binary @examples/alderbrook.json
 ```
 
-The importing account becomes a member of every enterprise in the bundle; an
-enterprise that already exists can only be replaced by one of its members.
-
-[`household.json`](examples/household.json) is the smallest model that still
-demonstrates the metamodel — a family household as an enterprise.
-[`alderbrook.json`](examples/alderbrook.json) is a fictional SaaS company, large
-enough to be worth navigating and mid-way through a platform migration, so moving
-the `as of` date visibly changes what you see.
-
-Import replaces only the enterprises a bundle contains; other enterprises are left
-untouched.
+Import replaces only the enterprises the bundle contains; the importing account
+becomes a member of each.
 
 ## Documentation
 
-**Why and what next** — [VISION.md](docs/VISION.md) for where this is headed,
-[USE-CASES.md](docs/USE-CASES.md) for what's being built next and why that first,
-broken into stories in [USER-STORIES.md](docs/USER-STORIES.md).
+- [VISION.md](docs/VISION.md), [USE-CASES.md](docs/USE-CASES.md), [USER-STORIES.md](docs/USER-STORIES.md): why, and what next
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md), [DATABASE.md](docs/DATABASE.md), [GLOSSARY.md](docs/GLOSSARY.md), [DECISIONS.md](docs/DECISIONS.md): how it is built, and why that way
+- [BACKLOG.md](docs/BACKLOG.md), [IDEAS.md](docs/IDEAS.md): known defects and committed work, and the parking lot
 
-**How it's built** — [ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the codebase and
-lists the invariants the model depends on; [DATABASE.md](docs/DATABASE.md) is the
-schema, table by table. [GLOSSARY.md](docs/GLOSSARY.md) defines
-every EAM term as this codebase uses it. [DECISIONS.md](docs/DECISIONS.md) records
-the choices that are deliberate, and why.
-
-**What's known and what's merely possible** — [BACKLOG.md](docs/BACKLOG.md) for
-defects and committed work, [IDEAS.md](docs/IDEAS.md) for the parking lot.
-
-Contributions welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions welcome; start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Stack
 
