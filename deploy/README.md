@@ -38,17 +38,42 @@ GitHub ──push main──▶ CI: lint, typecheck, build, images ──▶ ghc
 - **Backups**: a systemd timer dumps prod nightly; `age` encrypts, `rclone`
   copies off-host. `restore.sh` loads a dump into staging, which is the test.
 
+## Keys
+
+Two SSH keys are involved, and they never mix:
+
+| Key | Private half lives | Used for |
+| --- | --- | --- |
+| **Admin key** | only on your laptop (with a passphrase) | logging in as root to administer the host |
+| **Deploy key** | only in GitHub (`DEPLOY_SSH_KEY`) | running `deploy.sh` as `deploy`, nothing else |
+
+Generate the admin key on your laptop (or reuse an existing ed25519 key) and
+upload only the `.pub` half to the provider. Do not let the provider generate
+it. The deploy key is generated on the host in step 4. Never store the admin
+key as a GitHub secret: whoever reads the secrets would have root.
+
 ## Server, once
 
 A VPS with 2 vCPU, 4 GB RAM and 40 GB disk runs both environments comfortably;
-nothing is built on it. Ubuntu 24.04 LTS. Two DNS records, `A` (and `AAAA`)
-for the production and staging hostnames, pointing at it. In the provider's
-firewall open 22, 80 and 443 only.
+nothing is built on it. 2 GB RAM is too tight for two Postgres instances plus
+pulls and dumps; 20 GB disk fills up with images, volumes and local dumps.
+Debian 13 (minimal). Give the machine a plain name such as `openeam-1`
+(lowercase, digits, hyphens; it may become the hostname, and it hosts both
+environments, so not `…-prod`). Two DNS records, `A` (and `AAAA`) for the
+production and staging hostnames, pointing at it. In the provider's firewall
+open 22, 80 and 443 only.
+
+All commands below run as root (`sudo -i` if the image logs you in as its
+default user).
 
 ```bash
-# 1. Base system
+# 1. Base system, with automatic security updates
 apt update && apt upgrade -y
-apt install -y git age rclone unattended-upgrades
+apt install -y ca-certificates curl git age rclone unattended-upgrades
+cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+APT
 curl -fsSL https://get.docker.com | sh
 
 # 2. The deploy user: runs the stacks, nothing else. docker group membership is
@@ -86,7 +111,13 @@ printf 'command="/srv/openeam/bin/deploy.sh",restrict %s\n' "$(cat /root/deploy_
   > /home/deploy/.ssh/authorized_keys
 chown deploy:deploy /home/deploy/.ssh/authorized_keys && chmod 600 /home/deploy/.ssh/authorized_keys
 cat /root/deploy_key          # → GitHub secret DEPLOY_SSH_KEY, then shred -u /root/deploy_key
-ssh-keyscan -t ed25519 "$(hostname -f)"   # → GitHub variable DEPLOY_KNOWN_HOSTS
+
+# The known_hosts line must name the host exactly as DEPLOY_HOST does
+# (hostname or IP), or the workflow's host-key check fails. Built from the
+# local host key, so nothing is trusted over the network:
+DEPLOY_HOST=eam.example.com   # the value you put into the GitHub variable
+printf '%s %s\n' "$DEPLOY_HOST" "$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+                              # → GitHub variable DEPLOY_KNOWN_HOSTS
 
 # 5. Backups: an age key pair, generated OFF the host (your laptop):
 #    age-keygen -o openeam-backup.key   → the public key goes into backup.env
@@ -113,12 +144,13 @@ In the repository settings:
 - **Environments** `staging` and `production`. On `production`, add yourself
   as a required reviewer and restrict deployments to tags matching `v*`.
 - **Variables**, per environment: `DEPLOY_HOST` (server address),
-  `DEPLOY_KNOWN_HOSTS` (the `ssh-keyscan` line), `OPENEAM_HOST` (the public
+  `DEPLOY_KNOWN_HOSTS` (the line from step 4), `OPENEAM_HOST` (the public
   hostname of that environment, for the deployment link).
-- **Secret**, per environment: `DEPLOY_SSH_KEY` (the private key). Both
-  environments may use the same key; the forced command decides what it may
-  do. The `production` environment's reviewer rule is what keeps a tag from
-  deploying unseen; the key alone cannot change what runs.
+- **Secret**, per environment: `DEPLOY_SSH_KEY` (the private deploy key, never
+  your admin key). Both environments may use the same deploy key; the forced
+  command decides what it may do. The `production` environment's reviewer
+  rule is what keeps a tag from deploying unseen; the key alone cannot change
+  what runs.
 - **Packages**: after the first push the two packages appear under the
   owner; set them to public so the server can pull without a token (or create
   a read-only token and `docker login ghcr.io` on the server as `deploy`).
@@ -135,9 +167,10 @@ In the repository settings:
   before the new API applies migrations. **Create the first account right
   after the first deploy**: it becomes the instance admin, and anyone reaching
   the hostname could create it first.
-- **Rollback**: `ssh deploy@host "prod v0.0.9"` from a machine with the key,
-  or edit `OPENEAM_TAG` in `/srv/openeam/prod/.env` and `docker compose up -d`.
-  Migrations do not roll back; a schema change that needs undoing is a restore.
+- **Rollback**: `ssh deploy@host "prod v0.0.9"` from a machine with the deploy
+  key, or log in with your admin key, edit `OPENEAM_TAG` in
+  `/srv/openeam/prod/.env` and `docker compose up -d`. Migrations do not roll
+  back; a schema change that needs undoing is a restore.
 - **Restore**: `restore.sh staging <dump> <age identity>` loads a prod dump
   into staging. Do it once a quarter; it is the only proof the backups work.
 - **Updating this folder**: nothing in `deploy/` reaches the server by
@@ -148,8 +181,11 @@ In the repository settings:
 
 ## Infomaniak notes
 
-- VPS Cloud or Public Cloud; the OS image is Ubuntu 24.04. Add the SSH key in
-  the Manager when creating the machine and disable password login.
+- VPS Cloud or Public Cloud; the OS image is Debian 13. The 2 CPU / 4 GB /
+  40 GB configuration is the one to pick.
+- SSH key: choose adding your own key and paste your laptop's `.pub` (e.g.
+  `pbcopy < ~/.ssh/id_ed25519.pub` on macOS), not "generate new key", so the
+  private half never leaves your machine. Make sure password login is off.
 - DNS for a domain hosted there is in the Manager's domain section; two `A`
   records (and `AAAA` if the VPS has an IPv6 address) suffice.
 - The Manager's firewall is the one that counts; `ufw` on the host does not
