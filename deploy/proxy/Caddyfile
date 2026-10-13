@@ -1,6 +1,6 @@
-# Routes each public hostname to the web container of one environment. The
-# container names are the aliases deploy/compose.yml registers on the `edge`
-# network: <COMPOSE_PROJECT_NAME>-web. Values in {$…} come from proxy/.env.
+# Routes each public hostname to the web container of one environment, by
+# container name: <COMPOSE_PROJECT_NAME>-web, on the shared `edge` network.
+# Values in {$…} come from proxy/.env.
 #
 # Caddy adds X-Forwarded-For / -Proto / -Host; the stack's nginx appends its
 # own hop, which is why the API runs with TRUST_PROXY=2.

@@ -27,9 +27,9 @@ GitHub ──push main──▶ CI: lint, typecheck, build, images ──▶ ghc
   own Postgres, own volume, own `.env`. Nothing is shared but the proxy.
   Staging receives every migration before production does.
 - **Caddy is the only listener on the host.** It reaches each stack's web
-  container over the external Docker network `edge` by the alias
-  `<project>-web`. The stacks publish no ports, so Docker's habit of bypassing
-  the host firewall for published ports does not matter.
+  container over the external Docker network `edge` by its container name,
+  `<project>-web`. The stacks publish no ports, so Docker's habit of
+  bypassing the host firewall for published ports does not matter.
 - **Deploys arrive over SSH** as user `deploy`, whose key is restricted to
   `bin/deploy.sh` and can say nothing but `<environment> <tag>`. The script
   pins the tag, pulls, dumps prod first, and `docker compose up --wait`s so

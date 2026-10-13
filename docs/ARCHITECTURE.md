@@ -364,7 +364,7 @@ push and PR (so a broken Dockerfile fails there) and publishes them to GHCR on
 `main` and on `v*` tags, as `main`, an immutable `sha-…`, `v1.2.3` and
 `latest`. `deploy/compose.yml` is one environment from those images: no
 published ports, joined to an external `edge` network where the shared Caddy
-(`deploy/proxy`) reaches its web container by alias. Prod and staging are two
+(`deploy/proxy`) reaches its web container by name. Prod and staging are two
 copies of it with different `.env` files on one host. The workflow deploys
 over SSH to a key whose forced command is `deploy/bin/deploy.sh` and whose
 only input is the environment and the tag; the script pins the tag, pulls,

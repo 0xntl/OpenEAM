@@ -16,6 +16,7 @@ name: openeam
 services:
   postgres:
     image: postgres:18-alpine
+    container_name: openeam-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-openeam}
@@ -35,6 +36,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    container_name: openeam-api
     profiles: [app]
     restart: unless-stopped
     depends_on:
@@ -56,6 +58,7 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+    container_name: openeam-web
     profiles: [app]
     restart: unless-stopped
     depends_on:

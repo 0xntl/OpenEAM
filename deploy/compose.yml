@@ -2,7 +2,7 @@
 # Runs once per environment (prod, staging) on the same host, each as its own
 # Compose project with its own Postgres, volume and .env. Nothing is published
 # on the host; the shared Caddy in deploy/proxy reaches the web container over
-# the external `edge` network by its alias. See deploy/README.md.
+# the external `edge` network by its name, <project>-web. See deploy/README.md.
 #
 #   cp .env.example .env            # fill in; COMPOSE_PROJECT_NAME names the stack
 #   docker compose pull && docker compose up -d --wait
@@ -19,6 +19,7 @@ x-logging: &logging
 services:
   postgres:
     image: postgres:18-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env}-postgres
     restart: unless-stopped
     logging: *logging
     environment:
@@ -35,6 +36,7 @@ services:
 
   api:
     image: ${OPENEAM_IMAGE:-ghcr.io/0xntl/openeam}-api:${OPENEAM_TAG:?set OPENEAM_TAG in .env}
+    container_name: ${COMPOSE_PROJECT_NAME}-api
     restart: unless-stopped
     logging: *logging
     depends_on:
@@ -54,17 +56,16 @@ services:
 
   web:
     image: ${OPENEAM_IMAGE:-ghcr.io/0xntl/openeam}-web:${OPENEAM_TAG}
+    # What the proxy's Caddyfile names, e.g. openeam-prod-web.
+    container_name: ${COMPOSE_PROJECT_NAME}-web
     restart: unless-stopped
     logging: *logging
     depends_on:
       api:
         condition: service_healthy
     networks:
-      default: {}
-      edge:
-        # What the proxy's Caddyfile names: <project>-web, e.g. openeam-prod-web.
-        aliases:
-          - ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env}-web
+      - default
+      - edge
     # Through nginx to the API and its database: the whole chain.
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
