@@ -8,7 +8,7 @@
 #
 # Settings in /srv/openeam/backup.env (chmod 600):
 #   BACKUP_AGE_RECIPIENT=age1…        public key; the private key stays off the host
-#   BACKUP_RCLONE_REMOTE=swiss:openeam-backups   rclone remote and bucket/path
+#   BACKUP_RCLONE_REMOTE=backups:openeam     rclone remote and bucket/path
 #   BACKUP_KEEP_DAYS=30
 set -euo pipefail
 

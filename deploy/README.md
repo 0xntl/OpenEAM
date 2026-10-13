@@ -38,33 +38,19 @@ GitHub ──push main──▶ CI: lint, typecheck, build, images ──▶ ghc
 - **Backups**: a systemd timer dumps prod nightly; `age` encrypts, `rclone`
   copies off-host. `restore.sh` loads a dump into staging, which is the test.
 
-## Keys
-
-Two SSH keys are involved, and they never mix:
-
-| Key | Private half lives | Used for |
-| --- | --- | --- |
-| **Admin key** | only on your laptop (with a passphrase) | logging in as root to administer the host |
-| **Deploy key** | only in GitHub (`DEPLOY_SSH_KEY`) | running `deploy.sh` as `deploy`, nothing else |
-
-Generate the admin key on your laptop (or reuse an existing ed25519 key) and
-upload only the `.pub` half to the provider. Do not let the provider generate
-it. The deploy key is generated on the host in step 4. Never store the admin
-key as a GitHub secret: whoever reads the secrets would have root.
-
 ## Server, once
 
 A VPS with 2 vCPU, 4 GB RAM and 40 GB disk runs both environments comfortably;
-nothing is built on it. 2 GB RAM is too tight for two Postgres instances plus
-pulls and dumps; 20 GB disk fills up with images, volumes and local dumps.
-Debian 13 (minimal). Give the machine a plain name such as `openeam-1`
-(lowercase, digits, hyphens; it may become the hostname, and it hosts both
-environments, so not `…-prod`). Two DNS records, `A` (and `AAAA`) for the
-production and staging hostnames, pointing at it. In the provider's firewall
-open 22, 80 and 443 only.
+nothing is built on it. Debian 13 or Ubuntu 24.04. Two DNS records, `A` (and
+`AAAA`) for the production and staging hostnames, pointing at it. In the
+provider's firewall open 22, 80 and 443 only; `ufw` on the host does not see
+Docker's published ports, which is one reason this setup publishes none but
+Caddy's.
 
-All commands below run as root (`sudo -i` if the image logs you in as its
-default user).
+Two SSH keys, which never mix: your own admin key, whose private half stays
+on your machine and is never a GitHub secret, and the deploy key made in
+step 4, whose private half lives only in GitHub and can only run
+`deploy.sh`. All commands below run as root.
 
 ```bash
 # 1. Base system, with automatic security updates
@@ -123,11 +109,11 @@ printf '%s %s\n' "$DEPLOY_HOST" "$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key
 #    age-keygen -o openeam-backup.key   → the public key goes into backup.env
 cat > /srv/openeam/backup.env <<'ENV'
 BACKUP_AGE_RECIPIENT=age1…
-BACKUP_RCLONE_REMOTE=swiss:openeam-backups
+BACKUP_RCLONE_REMOTE=backups:openeam
 BACKUP_KEEP_DAYS=30
 ENV
 chmod 600 /srv/openeam/backup.env && chown deploy:deploy /srv/openeam/backup.env
-sudo -u deploy rclone config    # an S3 remote (Infomaniak Public Cloud, Swiss Backup, …)
+sudo -u deploy rclone config    # any S3-compatible bucket; keep it in another location
 systemctl enable --now openeam-backup@prod.timer
 
 # 6. The proxy
@@ -178,18 +164,3 @@ In the repository settings:
   When `compose.yml`, `bin/`, `proxy/` or the systemd units change, copy them
   as in step 3 before deploying the release that needs them. They change
   rarely.
-
-## Infomaniak notes
-
-- VPS Cloud or Public Cloud; the OS image is Debian 13. The 2 CPU / 4 GB /
-  40 GB configuration is the one to pick.
-- SSH key: choose adding your own key and paste your laptop's `.pub` (e.g.
-  `pbcopy < ~/.ssh/id_ed25519.pub` on macOS), not "generate new key", so the
-  private half never leaves your machine. Make sure password login is off.
-- DNS for a domain hosted there is in the Manager's domain section; two `A`
-  records (and `AAAA` if the VPS has an IPv6 address) suffice.
-- The Manager's firewall is the one that counts; `ufw` on the host does not
-  see Docker's published ports. This setup publishes only Caddy's 80 and 443.
-- Off-host backups: Swiss Backup (S3-compatible, `rclone` type `s3`,
-  provider `Other`) or an Object Storage bucket in the Public Cloud. Both are
-  in Switzerland, which matters for the kind of data an architecture model holds.
