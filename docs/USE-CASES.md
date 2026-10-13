@@ -114,7 +114,7 @@ closed: typed edges (`depends_on`, `data_flow`, `hosted_on`) now exist between
 any two building blocks
 ([buildingBlockRelationships](../packages/db/src/schema/building-blocks.ts)),
 turning the model from a star around capabilities into a graph, and a landscape
-diagram ([diagram-js + elkjs](IDEAS.md), read-only, automatic layout) renders
+diagram (React Flow + elkjs, D-25, automatic layout) renders
 it — `hosted_on` as real nesting (Azure containing Kubernetes containing what
 runs on it) rather than a line.
 

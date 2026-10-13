@@ -29,8 +29,8 @@ Nothing here is decided. Three neighbours hold the things that are:
 
 ## Diagramming
 
-- **Persisted, hand-editable diagram layout** — the landscape diagram (diagram-js + elkjs, shipped — see README) is read-only and recomputes layout from scratch every load. Turning it into an editable, persistable document (own notation: palette, connector tool, manual repositioning) — the same generate-then-hand-edit-then-keep workflow already solved for business processes via `bpmnXml` — is the natural next step, once someone actually wants to rearrange a diagram and keep it that way.
-- **Cytoscape.js** — alternative to diagram-js if the landscape view turns out to be more "explore the dependency graph" than "author and keep a diagram": strong built-in layouts (cose, dagre, an elk extension), handles large graphs well, click-to-expand/collapse. Weaker as an authoring tool — no palette/connector UX — so only worth it if exploration ends up mattering more than persisted, hand-adjusted diagrams.
+- **Persisted diagram positions** — the landscape (React Flow + elkjs, D-25) recomputes its layout on every load; a block can be dragged to read a tangle, but the position is gone on reload. Keeping it is now small: React Flow positions are plain x/y per node, so a table of pinned positions per enterprise and viewpoint, applied over elk's layout for the nodes that have one, is the whole feature. Not a free drawing tool: the diagram stays generated from the model, hand work only pins where a block sits. Do it when someone wants to rearrange a diagram and keep it that way.
+- **Cytoscape.js or Sigma.js at scale** — React Flow renders every node as DOM, which is right for a landscape of a few hundred blocks and wrong for thousands. If someone wants to explore a whole group's graph on one canvas, that is a second, exploration-shaped view (canvas or WebGL rendering, expand/collapse, graph layouts) next to the landscape, not a replacement for it.
 
 ## Platform and interfaces
 

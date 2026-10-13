@@ -60,10 +60,13 @@ pnpm dev
 
 ## See it with data
 
-Two example models live in [examples/](examples/): [`household.json`](examples/household.json),
-the smallest model that still shows the metamodel, and
-[`alderbrook.json`](examples/alderbrook.json), a fictional SaaS company mid-way
-through a platform migration. Sign in once for a token, then import:
+Four example models live in [examples/](examples/), all fictional:
+[`household.json`](examples/household.json), the smallest model that still shows
+the metamodel; [`kestrel.json`](examples/kestrel.json), a 32-person coffee
+roastery run on SaaS and spreadsheets; [`alderbrook.json`](examples/alderbrook.json),
+a SaaS company mid-way through a platform migration; and
+[`meridian.json`](examples/meridian.json), an insurer of 2,800 people retiring
+a mainframe. Sign in once for a token, then import:
 
 ```bash
 TOKEN=$(curl -s http://localhost:4000/graphql -H "Content-Type: application/json" \

@@ -3,16 +3,16 @@ import { useQuery } from '@apollo/client/react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { BrandLoader } from '@/components/brand/brand';
-import type {
-  DiagramEdge,
-  DiagramEdgeKind,
-  DiagramNode,
-} from '@/components/landscape/landscape-diagram';
 import {
   EMPTY_LANDSCAPE_FILTERS,
   LandscapeFilters,
   type LandscapeFilterValues,
 } from '@/components/landscape/landscape-filters';
+import type {
+  DiagramEdge,
+  DiagramEdgeKind,
+  DiagramNode,
+} from '@/components/landscape/landscape-flow';
 import { fullBleedCanvasClassName } from '@/components/ui/page-header';
 import { useEnterprise } from '@/lib/enterprise';
 import type {
@@ -21,8 +21,8 @@ import type {
   OrganizationUnit,
 } from '@/lib/entities';
 
-// diagram-js + elkjs are heavy; only load them when this route is visited.
-const LandscapeDiagram = lazy(() => import('@/components/landscape/landscape-diagram'));
+// React Flow + elkjs are heavy; only load them when this route is visited.
+const LandscapeFlow = lazy(() => import('@/components/landscape/landscape-flow'));
 
 // Architecture building blocks (needed capabilities) deliberately aren't
 // queried or rendered here — this diagram is the concrete technical
@@ -176,7 +176,7 @@ function LandscapeDiagramRoute() {
                 </div>
               }
             >
-              <LandscapeDiagram
+              <LandscapeFlow
                 nodes={nodes}
                 edges={edges}
                 onNodeClick={(nodeId) =>

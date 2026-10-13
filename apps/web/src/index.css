@@ -89,12 +89,12 @@
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
 
-    /* Landscape diagram (landscape-renderer.ts) — set as raw SVG fill/
-       stroke attributes, not Tailwind classes, so they aren't registered
-       in the @theme inline block above. The renderer should never
-       hardcode a color of its own: every visual choice it makes pulls
-       from a token here, so dark mode stays correct automatically as the
-       diagram's visual language grows — add a token, not a conditional. */
+    /* Landscape diagram (landscape-flow.tsx) — read as inline styles and
+       SVG attributes, not Tailwind classes, so they aren't registered in
+       the @theme inline block above. The canvas should never hardcode a
+       color of its own: every visual choice it makes pulls from a token
+       here, so dark mode stays correct automatically as the diagram's
+       visual language grows — add a token, not a conditional. */
     --landscape-domain-business-fill: #fef9c3;
     --landscape-domain-business-stroke: #a16207;
     --landscape-domain-data-fill: #ccfbf1;
@@ -318,4 +318,74 @@
   .brand-loader-fill-trail-2 {
     display: none;
   }
+}
+
+/* Landscape canvas (React Flow, landscape-flow.tsx). React Flow themes its
+   own chrome through --xy-* variables; pointing them at the app's tokens
+   keeps controls, minimap and background on the same palette as the rest
+   of the page in both themes. Node and edge colours are the --landscape-*
+   tokens above, set by the components. */
+.landscape-flow.react-flow {
+  --xy-background-color: var(--card);
+  --xy-background-pattern-color: var(--border);
+  --xy-controls-button-background-color: var(--card);
+  --xy-controls-button-background-color-hover: var(--accent);
+  --xy-controls-button-color: var(--foreground);
+  --xy-controls-button-color-hover: var(--foreground);
+  --xy-controls-button-border-color: var(--border);
+  --xy-controls-box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+  --xy-minimap-background-color: var(--card);
+  --xy-minimap-mask-background-color: color-mix(in oklch, var(--background) 65%, transparent);
+  --xy-minimap-mask-stroke-color: var(--border);
+  --xy-attribution-background-color: color-mix(in oklch, var(--card) 80%, transparent);
+  --xy-edge-stroke-selected: var(--landscape-arrow);
+  --xy-node-boxshadow-selected: none;
+}
+.landscape-flow .react-flow__minimap {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.landscape-flow .react-flow__controls {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+/* Edges attach to a side of the node, but a read-only landscape shows no
+   connector dots. */
+.landscape-flow .landscape-handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+  opacity: 0;
+}
+.landscape-flow .react-flow__node {
+  cursor: pointer;
+}
+/* Hover: the element itself, what it touches, and everything else dimmed.
+   Containers holding something lit keep their opacity (no class). */
+.landscape-flow .react-flow__node.is-active .landscape-node,
+.landscape-flow .react-flow__node.is-connected .landscape-node {
+  border-width: 2.5px;
+}
+.landscape-flow .react-flow__node.is-active .landscape-node-shape path,
+.landscape-flow .react-flow__node.is-active .landscape-node-shape ellipse,
+.landscape-flow .react-flow__node.is-connected .landscape-node-shape path,
+.landscape-flow .react-flow__node.is-connected .landscape-node-shape ellipse {
+  stroke-width: 2.5;
+}
+.landscape-flow .react-flow__node.is-dimmed,
+.landscape-flow .react-flow__edge.is-dimmed {
+  opacity: 0.25;
+}
+.landscape-flow .react-flow__edge.is-active .react-flow__edge-path,
+.landscape-flow .react-flow__edge.is-connected .react-flow__edge-path {
+  stroke-width: 3.5;
+}
+.landscape-flow .react-flow__node,
+.landscape-flow .react-flow__edge {
+  transition: opacity 120ms ease;
 }

@@ -226,10 +226,13 @@ the checks are a script run by hand (see the commit that introduced them).
 - **Enterprise scope** — `src/lib/enterprise.tsx` holds the selected enterprise in
   a context, persisted in `localStorage` under `enterpriseId`. Every scoped page
   reads it.
-- **Landscape diagram** — diagram-js with elkjs auto-layout. Read-only and
-  recomputed on every load; it is not a persisted document. Model icons are
-  fetched while elk lays out and inlined into the SVG, so the renderer, which
-  draws synchronously, never waits for them.
+- **Landscape diagram** — React Flow (`@xyflow/react`) as the canvas, elkjs
+  for the layout (D-25). `components/landscape/landscape-graph.ts` is the
+  data side: viewpoint filtering, `hosted_on` as containment, the elk layout
+  and its orthogonal edge routes, no DOM. `landscape-flow.tsx` draws it:
+  nodes are React components (model icons, tooltips and theme tokens are the
+  app's own), edges follow elk's route until an endpoint is dragged, then the
+  node handles. Recomputed on every load; positions are not persisted.
 - **Process diagrams** — bpmn-js. Here the diagram *is* the source of truth:
   `bpmn_xml` is stored, and `process_steps` are re-synced from it on every save.
 - **Branding** — `components/brand/brand.tsx`: `Brand` (the uploaded logo,
@@ -295,10 +298,25 @@ a user would use.
 
 - **`household.json`** — the smallest possible model, a family household. The only
   bundle that may be named in committed docs.
+- **`kestrel.json`** — Kestrel Coffee Roasters, a fictional 32-person roastery
+  with two cafés, an online shop and wholesale customers: 36 building blocks,
+  nearly all SaaS, one custom portal, spreadsheets being replaced by an ERP that
+  is still `planned`. What a small company's architecture actually looks like.
 - **`alderbrook.json`** — a fictional B2B SaaS, ~58 building blocks. Sized so the
   metamodel is legible to a stranger: ABB/SBB splits, three-deep hosting nesting,
   dated realizations, and a runtime migration in flight so the `asOf` date visibly
   changes the picture.
+- **`meridian.json`** — Meridian Mutual, a fictional insurer of 2,800 people:
+  105 building blocks, 24 capabilities, 29 organization units, five domains. A
+  mainframe policy system being replaced line by line, a data warehouse in
+  parallel run, a Data Office that took data out of IT in 2025, and a named
+  individual as a key-person risk. The bundle to test anything at scale against.
+
+Ids are UUIDv5 of `openeam:examples:<bundle>:<table>:<key>` in the URL
+namespace (D-8), where the key is the readable slug the bundle was authored
+with; regenerating a bundle from the same source gives byte-identical output.
+Every bundle must pass `pnpm check:examples` (icon ids resolve) and import
+cleanly alongside the others into one database.
 
 Real, non-public enterprises are modelled in `examples/private/`, which is
 gitignored, and are never named in any tracked file. See [CLAUDE.md](../CLAUDE.md).

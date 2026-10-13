@@ -7,7 +7,7 @@
 // chosen by users at runtime, so they are fetched by id from this API's own
 // icon endpoint — never from the public Iconify API; a self-hosted instance
 // makes no outbound requests for its diagrams.
-import { addAPIProvider, buildIcon, getIcon, loadIcons } from '@iconify/react';
+import { addAPIProvider } from '@iconify/react';
 
 // Mirrors ICON_COLLECTIONS in the API (apps/api/src/icons/icon-id.ts).
 export const ICON_COLLECTIONS = ['simple-icons', 'lucide'] as const;
@@ -89,46 +89,4 @@ export const SUGGESTED_ICONS: string[] = [
 // proxies /api) and in Docker (nginx does), so one line covers both.
 export function configureIconProvider(): void {
   addAPIProvider('', { resources: [`${window.location.origin}/api/icons`] });
-}
-
-// For consumers that draw synchronously (the landscape renderer builds its
-// SVG in diagram-js's drawShape): load these ids first, then read them with
-// iconSvg(). Resolves once every id is loaded or known to be missing, and
-// after `timeoutMs` regardless, so an unreachable icon endpoint costs a
-// diagram its icons, not its rendering. Never rejects.
-export function preloadIcons(ids: Array<string | undefined>, timeoutMs = 4000): Promise<void> {
-  const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
-  if (unique.length === 0) return Promise.resolve();
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve();
-    };
-    const timer = setTimeout(() => {
-      abort();
-      finish();
-    }, timeoutMs);
-    const abort = loadIcons(unique, (_loaded, _missing, pending) => {
-      if (pending.length === 0) finish();
-    });
-  });
-}
-
-export interface RawIconSvg {
-  // viewBox plus width/height; spread onto an <svg> element.
-  attributes: Record<string, string>;
-  // The inner markup, using currentColor.
-  body: string;
-}
-
-// The raw SVG for an icon that has been loaded (see preloadIcons), scaled
-// to `size` pixels on its taller side. Undefined when it is not available.
-export function iconSvg(id: string, size: number): RawIconSvg | undefined {
-  const data = getIcon(id);
-  if (!data) return undefined;
-  const built = buildIcon(data, { height: size });
-  return { attributes: built.attributes as Record<string, string>, body: built.body };
 }

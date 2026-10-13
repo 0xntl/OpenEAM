@@ -1,0 +1,2505 @@
+{
+  "formatVersion": 1,
+  "enterprises": [
+    {
+      "id": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Kestrel Coffee Roasters",
+      "description": "A specialty coffee roastery of 32 people: one roastery, two cafés, an online shop and about 120 wholesale customers. Founded 2016 by two friends with a 12 kg roaster, grown on SaaS tools and spreadsheets. Now large enough that the spreadsheets are the risk, and about to put an ERP in the middle of everything.",
+      "goal": "Double wholesale volume by 2028 without hiring a second person to run the back office.",
+      "avatarBgColor": "#5b3a29",
+      "avatarTextColor": "#f7efe6"
+    }
+  ],
+  "businessCapabilities": [
+    {
+      "id": "75919999-c709-51ee-b2e3-e563377d0275",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Green Coffee Sourcing",
+      "description": "Choosing and buying green coffee lots from importers and, for two farms, directly. The reputation is bought here.",
+      "direction": "invest"
+    },
+    {
+      "id": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Roasting & Production",
+      "description": "Turning green lots into roasted, rested, packed coffee to a profile, on a schedule the orders set.",
+      "direction": "sustain"
+    },
+    {
+      "id": "615b38fb-933a-5758-9592-d398ee5de971",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Quality Control",
+      "description": "Cupping every lot on arrival and every batch after roasting, and recording it so a complaint can be traced.",
+      "direction": "sustain"
+    },
+    {
+      "id": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Wholesale Sales & Account Management",
+      "description": "Winning cafés and keeping them: standing orders, training their baristas, fixing their grinders.",
+      "direction": "invest"
+    },
+    {
+      "id": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Café Operations",
+      "description": "Running two shops: service, stock, cash, opening hours.",
+      "direction": "sustain"
+    },
+    {
+      "id": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Online Retail",
+      "description": "Selling bags and subscriptions to people at home.",
+      "direction": "invest"
+    },
+    {
+      "id": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Order Fulfilment & Shipping",
+      "description": "Packing what was ordered and getting it to a doorstep or a café door.",
+      "direction": "sustain"
+    },
+    {
+      "id": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Inventory Management",
+      "description": "Knowing how much green and roasted coffee exists, where, and for how long. Currently the hardest question in the company.",
+      "direction": "invest"
+    },
+    {
+      "id": "cfb23b69-c371-5550-8c65-88dbf37e692f",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Marketing & Community",
+      "description": "Newsletter, social, cupping evenings, the brand.",
+      "direction": null
+    },
+    {
+      "id": "33eda802-90f5-516d-be69-f7fa6be57bc2",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Customer Service",
+      "description": "Answering questions from cafés and online customers; replacing the bag that arrived stale.",
+      "direction": null
+    },
+    {
+      "id": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Finance & Accounting",
+      "description": "Invoices, payments, the books, VAT, the accountant.",
+      "direction": "commodity"
+    },
+    {
+      "id": "67194ccf-c767-53ef-9caf-c9e2652b0c78",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "People & Scheduling",
+      "description": "Hiring, paying and rostering 32 people across three sites.",
+      "direction": "commodity"
+    },
+    {
+      "id": "7dc6faf5-6ee0-5114-8a46-aa697618e6c3",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "IT & Workplace",
+      "description": "Accounts, devices, the Wi-Fi, and whoever gets locked out on a Saturday.",
+      "direction": "commodity"
+    }
+  ],
+  "businessProcesses": [
+    {
+      "id": "2ae5f31b-76a1-59c7-88c7-1b69e5578d9c",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Weekly roast plan",
+      "description": "Monday morning's hour with the orders and the green stock sheet. The schedule is still a whiteboard photo.",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "triggerEvent": "Monday morning: the standing orders and the weekend's online and café sales are in.",
+      "outcome": "A roast schedule for the week that covers every order without roasting what will not sell.",
+      "bpmnXml": null
+    },
+    {
+      "id": "1c73a84a-f0d0-5fb6-bf3b-8afcabb74e7b",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Wholesale order to invoice",
+      "description": "Since the portal, cafés order themselves. The standing orders still arrive by e-mail from the ones who never log in.",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "triggerEvent": "A café submits a portal order, or a standing order comes due.",
+      "outcome": "The order is packed, delivered, and invoiced in the books.",
+      "bpmnXml": null
+    },
+    {
+      "id": "606671d3-34f3-5425-9864-18ac7e35ef4d",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Green coffee intake",
+      "description": "Every pallet gets cupped before it is accepted. The score sheet is the quality system.",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "triggerEvent": "A pallet arrives from the importer.",
+      "outcome": "The lot is cupped, graded, and in stock with a lot number.",
+      "bpmnXml": null
+    },
+    {
+      "id": "ef1d15f3-2d83-5b7d-8a7a-03cd40e96d08",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Monthly close",
+      "description": "Three payout reconciliations and one spreadsheet, then it goes to the accountant.",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "triggerEvent": "The month ends.",
+      "outcome": "Bank, Shopify, Square and the portal are reconciled and the books are with the accountant.",
+      "bpmnXml": null
+    }
+  ],
+  "processSteps": [
+    {
+      "id": "5a92a4e2-0222-5c2e-920f-1b52d3519df2",
+      "name": "Collect orders",
+      "processId": "2ae5f31b-76a1-59c7-88c7-1b69e5578d9c",
+      "position": 0
+    },
+    {
+      "id": "da5ca5c0-a7a0-5279-9889-8fb18de4a409",
+      "name": "Check green stock",
+      "processId": "2ae5f31b-76a1-59c7-88c7-1b69e5578d9c",
+      "position": 1
+    },
+    {
+      "id": "3a83c969-4c67-5e54-aa50-51450af618b2",
+      "name": "Schedule batches",
+      "processId": "2ae5f31b-76a1-59c7-88c7-1b69e5578d9c",
+      "position": 2
+    },
+    {
+      "id": "65a6dd83-730a-5d31-8645-4487fb4554ac",
+      "name": "Roast",
+      "processId": "2ae5f31b-76a1-59c7-88c7-1b69e5578d9c",
+      "position": 3
+    },
+    {
+      "id": "d9fd61fa-308d-5760-afc9-cd3e717ffccf",
+      "name": "Record batches",
+      "processId": "2ae5f31b-76a1-59c7-88c7-1b69e5578d9c",
+      "position": 4
+    },
+    {
+      "id": "2cc36186-1d27-5c6c-a1de-fd8a45c68593",
+      "name": "Capture order",
+      "processId": "1c73a84a-f0d0-5fb6-bf3b-8afcabb74e7b",
+      "position": 0
+    },
+    {
+      "id": "a5f4557a-5ef1-54d4-b347-3f673dc922b3",
+      "name": "Confirm stock",
+      "processId": "1c73a84a-f0d0-5fb6-bf3b-8afcabb74e7b",
+      "position": 1
+    },
+    {
+      "id": "072f8792-9b33-5340-a01b-67ef9a75b786",
+      "name": "Pack",
+      "processId": "1c73a84a-f0d0-5fb6-bf3b-8afcabb74e7b",
+      "position": 2
+    },
+    {
+      "id": "5cc4fb0b-f281-5d83-ae70-499eec755deb",
+      "name": "Deliver",
+      "processId": "1c73a84a-f0d0-5fb6-bf3b-8afcabb74e7b",
+      "position": 3
+    },
+    {
+      "id": "47abf450-472b-5840-b192-7d80160fff5d",
+      "name": "Invoice",
+      "processId": "1c73a84a-f0d0-5fb6-bf3b-8afcabb74e7b",
+      "position": 4
+    },
+    {
+      "id": "12f4ef3a-06f9-51c9-a483-5a63f4a96c63",
+      "name": "Receive",
+      "processId": "606671d3-34f3-5425-9864-18ac7e35ef4d",
+      "position": 0
+    },
+    {
+      "id": "1c09ab0f-13f6-5408-ad9a-02c19061d24a",
+      "name": "Sample roast",
+      "processId": "606671d3-34f3-5425-9864-18ac7e35ef4d",
+      "position": 1
+    },
+    {
+      "id": "161d84dc-ce57-5cfd-a308-86376094d662",
+      "name": "Cup",
+      "processId": "606671d3-34f3-5425-9864-18ac7e35ef4d",
+      "position": 2
+    },
+    {
+      "id": "5fe18f14-cbdc-59bb-b82d-50f0e4b0bfbe",
+      "name": "Record score",
+      "processId": "606671d3-34f3-5425-9864-18ac7e35ef4d",
+      "position": 3
+    },
+    {
+      "id": "de4e4ed4-8fb7-5ff8-86cc-b9285c5631ec",
+      "name": "Shelve",
+      "processId": "606671d3-34f3-5425-9864-18ac7e35ef4d",
+      "position": 4
+    },
+    {
+      "id": "0b0c4894-3b65-5f1b-86bc-49076515247b",
+      "name": "Reconcile bank",
+      "processId": "ef1d15f3-2d83-5b7d-8a7a-03cd40e96d08",
+      "position": 0
+    },
+    {
+      "id": "f5eac8e6-0149-51bb-a71b-2de8d2ac53ed",
+      "name": "Reconcile Shopify payouts",
+      "processId": "ef1d15f3-2d83-5b7d-8a7a-03cd40e96d08",
+      "position": 1
+    },
+    {
+      "id": "6339881f-5781-5474-9e3d-b7018b6c8b0e",
+      "name": "Reconcile Square payouts",
+      "processId": "ef1d15f3-2d83-5b7d-8a7a-03cd40e96d08",
+      "position": 2
+    },
+    {
+      "id": "9ea1b095-437d-5c9f-8529-dfda83855778",
+      "name": "Send to accountant",
+      "processId": "ef1d15f3-2d83-5b7d-8a7a-03cd40e96d08",
+      "position": 3
+    }
+  ],
+  "valueStreams": [
+    {
+      "id": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Green lot to wholesale delivery",
+      "description": "From choosing a lot at the importer's cupping table to a café opening a fresh box on a Tuesday."
+    },
+    {
+      "id": "5c228330-c30f-5624-8793-b245c0d1da87",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Online order to doorstep",
+      "description": "A bag ordered on Sunday evening, roasted Monday, in the letterbox Wednesday."
+    },
+    {
+      "id": "a8859e50-8240-5ef0-b88d-2e8517b9dde6",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Café visit",
+      "description": "The shortest stream and the one most people meet the brand in."
+    }
+  ],
+  "valueStreamStages": [
+    {
+      "id": "d5921d2e-f031-5d75-81f1-e090dd9f65b2",
+      "name": "Source",
+      "valueStreamId": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "position": 0
+    },
+    {
+      "id": "a700b864-115c-53a0-b88b-ca047b7c10bc",
+      "name": "Receive and cup",
+      "valueStreamId": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "position": 1
+    },
+    {
+      "id": "8c30e30c-e31e-5090-bae3-0c018d416a6b",
+      "name": "Roast",
+      "valueStreamId": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "position": 2
+    },
+    {
+      "id": "2da4edfd-d822-52c9-8678-71b92b3c78dd",
+      "name": "Pack",
+      "valueStreamId": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "position": 3
+    },
+    {
+      "id": "e034bed5-247c-53dc-9132-e438970c990d",
+      "name": "Deliver",
+      "valueStreamId": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "position": 4
+    },
+    {
+      "id": "a14c0f9f-c632-5663-88ec-802b6ea7589f",
+      "name": "Invoice",
+      "valueStreamId": "7769d176-7cfe-582c-9308-ae9512e1eaa1",
+      "position": 5
+    },
+    {
+      "id": "c916632e-0375-5f13-9a07-d663f8bc1137",
+      "name": "Browse",
+      "valueStreamId": "5c228330-c30f-5624-8793-b245c0d1da87",
+      "position": 0
+    },
+    {
+      "id": "04c781a4-0dac-50f6-bd81-e18f160142eb",
+      "name": "Order",
+      "valueStreamId": "5c228330-c30f-5624-8793-b245c0d1da87",
+      "position": 1
+    },
+    {
+      "id": "84e4799c-980e-56bd-a433-5613401047b8",
+      "name": "Roast to order",
+      "valueStreamId": "5c228330-c30f-5624-8793-b245c0d1da87",
+      "position": 2
+    },
+    {
+      "id": "f5b50eb3-edde-5c52-8137-887a5421c4aa",
+      "name": "Ship",
+      "valueStreamId": "5c228330-c30f-5624-8793-b245c0d1da87",
+      "position": 3
+    },
+    {
+      "id": "fb847860-07fa-5531-a062-a0fea1e246b2",
+      "name": "Support",
+      "valueStreamId": "5c228330-c30f-5624-8793-b245c0d1da87",
+      "position": 4
+    },
+    {
+      "id": "b153bdd2-0588-57c3-b513-698d3fdd869b",
+      "name": "Serve",
+      "valueStreamId": "a8859e50-8240-5ef0-b88d-2e8517b9dde6",
+      "position": 0
+    },
+    {
+      "id": "a26540cb-5ba7-584c-91cd-5ef8c2b7e27f",
+      "name": "Pay",
+      "valueStreamId": "a8859e50-8240-5ef0-b88d-2e8517b9dde6",
+      "position": 1
+    },
+    {
+      "id": "951f30a3-e742-5afd-9d52-93cade9ec172",
+      "name": "Return",
+      "valueStreamId": "a8859e50-8240-5ef0-b88d-2e8517b9dde6",
+      "position": 2
+    }
+  ],
+  "stageCapabilities": [
+    {
+      "stageId": "d5921d2e-f031-5d75-81f1-e090dd9f65b2",
+      "capabilityId": "75919999-c709-51ee-b2e3-e563377d0275",
+      "position": 0
+    },
+    {
+      "stageId": "a700b864-115c-53a0-b88b-ca047b7c10bc",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "position": 0
+    },
+    {
+      "stageId": "a700b864-115c-53a0-b88b-ca047b7c10bc",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "position": 1
+    },
+    {
+      "stageId": "8c30e30c-e31e-5090-bae3-0c018d416a6b",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "position": 0
+    },
+    {
+      "stageId": "8c30e30c-e31e-5090-bae3-0c018d416a6b",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "position": 1
+    },
+    {
+      "stageId": "2da4edfd-d822-52c9-8678-71b92b3c78dd",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "position": 0
+    },
+    {
+      "stageId": "2da4edfd-d822-52c9-8678-71b92b3c78dd",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "position": 1
+    },
+    {
+      "stageId": "e034bed5-247c-53dc-9132-e438970c990d",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "position": 0
+    },
+    {
+      "stageId": "e034bed5-247c-53dc-9132-e438970c990d",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "position": 1
+    },
+    {
+      "stageId": "a14c0f9f-c632-5663-88ec-802b6ea7589f",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "position": 0
+    },
+    {
+      "stageId": "c916632e-0375-5f13-9a07-d663f8bc1137",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "position": 0
+    },
+    {
+      "stageId": "c916632e-0375-5f13-9a07-d663f8bc1137",
+      "capabilityId": "cfb23b69-c371-5550-8c65-88dbf37e692f",
+      "position": 1
+    },
+    {
+      "stageId": "04c781a4-0dac-50f6-bd81-e18f160142eb",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "position": 0
+    },
+    {
+      "stageId": "84e4799c-980e-56bd-a433-5613401047b8",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "position": 0
+    },
+    {
+      "stageId": "f5b50eb3-edde-5c52-8137-887a5421c4aa",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "position": 0
+    },
+    {
+      "stageId": "fb847860-07fa-5531-a062-a0fea1e246b2",
+      "capabilityId": "33eda802-90f5-516d-be69-f7fa6be57bc2",
+      "position": 0
+    },
+    {
+      "stageId": "b153bdd2-0588-57c3-b513-698d3fdd869b",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "position": 0
+    },
+    {
+      "stageId": "a26540cb-5ba7-584c-91cd-5ef8c2b7e27f",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "position": 0
+    },
+    {
+      "stageId": "a26540cb-5ba7-584c-91cd-5ef8c2b7e27f",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "position": 1
+    },
+    {
+      "stageId": "951f30a3-e742-5afd-9d52-93cade9ec172",
+      "capabilityId": "cfb23b69-c371-5550-8c65-88dbf37e692f",
+      "position": 0
+    }
+  ],
+  "architectureDomains": [
+    {
+      "id": "b55f6f21-c91f-528a-9b53-32c7e6b95f67",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Business Architecture",
+      "description": "What the roastery does: capabilities, value streams, processes.",
+      "isDefault": true
+    },
+    {
+      "id": "218e94ab-0ac5-536a-85c7-59f9779d9998",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Data Architecture",
+      "description": "What it knows: lots, batches, customers, orders, and where each lives.",
+      "isDefault": true
+    },
+    {
+      "id": "86fc54bd-3932-5f21-a2d8-cb861133f1b5",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Application Architecture",
+      "description": "The SaaS tools, the one custom app, and the spreadsheets in between.",
+      "isDefault": true
+    },
+    {
+      "id": "93ca6cbc-3629-5245-adab-6fe9916041d0",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Technology Architecture",
+      "description": "Thin on purpose: a few terminals, a router, and other people's clouds.",
+      "isDefault": true
+    }
+  ],
+  "organizationUnits": [
+    {
+      "id": "c25ea349-be17-5e70-9827-854321ba8e2d",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Founders",
+      "description": "Two of them. One runs the roastery, one runs everything else.",
+      "parentId": null
+    },
+    {
+      "id": "9c7e748b-dd96-527a-9097-4e758d668d78",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Roastery",
+      "description": "Production, quality, packing. Nine people and a 60 kg roaster.",
+      "parentId": "c25ea349-be17-5e70-9827-854321ba8e2d"
+    },
+    {
+      "id": "1ccb5a52-656e-59bd-9108-c96e28f5e716",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Wholesale",
+      "description": "Two people looking after 120 cafés, restaurants and offices.",
+      "parentId": "c25ea349-be17-5e70-9827-854321ba8e2d"
+    },
+    {
+      "id": "42f1a6ce-5d85-554c-8b55-b7f4d72ff799",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Cafés",
+      "description": "Two shops, 16 people between them.",
+      "parentId": "c25ea349-be17-5e70-9827-854321ba8e2d"
+    },
+    {
+      "id": "010d83a2-7af8-5676-a61c-99373d4cf643",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Northside Café",
+      "description": "The original, next to the roastery.",
+      "parentId": "42f1a6ce-5d85-554c-8b55-b7f4d72ff799"
+    },
+    {
+      "id": "41ffbdac-b204-5625-b8e3-0ede204c15d4",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Station Café",
+      "description": "Opened 2022 at the railway station. Busier, smaller, more cash.",
+      "parentId": "42f1a6ce-5d85-554c-8b55-b7f4d72ff799"
+    },
+    {
+      "id": "e980985f-3ab0-581a-b6ce-ae0915ea8bfb",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Online Shop",
+      "description": "One person, the website, and the subscription customers.",
+      "parentId": "c25ea349-be17-5e70-9827-854321ba8e2d"
+    },
+    {
+      "id": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Back Office",
+      "description": "Bookkeeping, orders, scheduling, IT. One and a half people.",
+      "parentId": "c25ea349-be17-5e70-9827-854321ba8e2d"
+    }
+  ],
+  "buildingBlocks": [
+    {
+      "id": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Enterprise Resource Planning",
+      "description": "Orders, stock, invoices and products in one system instead of four. The need the company has just admitted it has.",
+      "icon": "lucide:boxes",
+      "architectureLevel": "segment",
+      "lifecyclePhase": "active",
+      "validFrom": "2025-01-01",
+      "validTo": null
+    },
+    {
+      "id": "d3fc5d99-dd30-5490-ba5a-a3ee23af4770",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Online Storefront",
+      "description": "Sells bags and subscriptions to people at home.",
+      "icon": "lucide:shopping-cart",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "14a3a803-920a-5f61-816c-0edbd48ca706",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Point of Sale",
+      "description": "Takes the money in the cafés and counts what was sold.",
+      "icon": "lucide:monitor",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Roast Management",
+      "description": "Records profiles and batches from the roaster, and keeps the quality scores with them.",
+      "icon": "lucide:flame",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "9584031e-9857-5d74-a8f6-d437405c488b",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Wholesale Ordering",
+      "description": "Lets a café order without a phone call, at its own prices.",
+      "icon": "lucide:store",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2023-01-01",
+      "validTo": null
+    },
+    {
+      "id": "c6fb2b09-f203-5cc3-b190-7b46593d95d2",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Accounting",
+      "description": "The books, and the accountant's way in.",
+      "icon": "lucide:landmark",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "c9f0a21d-a5b9-5886-bd18-41f760d9332e",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Inventory Management",
+      "description": "Knows how much coffee exists. Today: spreadsheets. From 2026: the ERP.",
+      "icon": "lucide:warehouse",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "e2bc09aa-ab0c-5648-a14d-b66af775e975",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Shipping & Carrier Integration",
+      "description": "Labels, tracking, pickups.",
+      "icon": "lucide:truck",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6364d773-009c-5490-8a64-8a1eaccecf3a",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Email Marketing",
+      "description": "The newsletter and the subscription reminders.",
+      "icon": "lucide:megaphone",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "a9729ca9-04b7-5421-8a29-576f20d21a5f",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Customer Support Desk",
+      "description": "Where questions from both kinds of customer land.",
+      "icon": "lucide:inbox",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "3e09afc2-1434-5bc1-b335-618ad93a3bbc",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Payroll & Scheduling",
+      "description": "Rosters and pay for three sites.",
+      "icon": "lucide:calendar",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "bc90819c-405d-50e7-b793-843c9adb9405",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Email & Collaboration",
+      "description": "Mail, files, chat.",
+      "icon": "lucide:mail",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "a08a183d-5de8-5128-b03d-688c38492a9e",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Web Hosting",
+      "description": "Where the custom portal runs.",
+      "icon": "lucide:cloud",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "e6ffe9c5-2581-5acf-aad4-87279dcb27f1",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "architecture",
+      "name": "Online Payments",
+      "description": "Cards for the shop and the portal.",
+      "icon": "lucide:credit-card",
+      "architectureLevel": "capability",
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Shopify",
+      "description": "The online shop and the subscriptions. Also, by accident, the product catalogue everything else copies from.",
+      "icon": "simple-icons:shopify",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "be6a86da-7922-5252-886c-2808dd838883",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Square POS",
+      "description": "Both cafés. Payouts reconciled by hand each month.",
+      "icon": "simple-icons:square",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "e89af09e-7db9-53f5-9a28-3f402047f9c1",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Café POS Terminals",
+      "description": "Four Square terminals and two tablets, on the shops' Wi-Fi.",
+      "icon": "lucide:monitor",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Cropster Roast",
+      "description": "Connected to the roaster. Profiles, batches, cupping scores. The one system the roastery trusts.",
+      "icon": "lucide:flame",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Xero",
+      "description": "The books since the beginning. Invoices for wholesale were typed in by hand until the portal.",
+      "icon": "simple-icons:xero",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Inventory Spreadsheets",
+      "description": "Google Sheets. Green stock, roasted stock, the roast plan. Built in 2019, inherited in 2024, feared since.",
+      "icon": "simple-icons:googlesheets",
+      "architectureLevel": null,
+      "lifecyclePhase": "phasing_out",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Odoo",
+      "description": "The ERP, due July 2026: inventory, wholesale orders, invoicing, and eventually the books.",
+      "icon": "simple-icons:odoo",
+      "architectureLevel": null,
+      "lifecyclePhase": "planned",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Wholesale Ordering Portal",
+      "description": "Custom, Next.js, built by a freelancer in 2025. Cafés order at their price list; invoices go straight to the books.",
+      "icon": "simple-icons:nextdotjs",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "1d9174a2-a019-57c5-95df-e120b0821018",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Supabase",
+      "description": "Postgres and auth behind the portal.",
+      "icon": "simple-icons:supabase",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "99eba4ca-90bb-5d18-951b-58de63938a7c",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Vercel",
+      "description": "Hosts the portal.",
+      "icon": "simple-icons:vercel",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "1b6ed260-f3b7-592a-85c0-d5c1275a560e",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Stripe",
+      "description": "Cards for the portal. Shopify has its own.",
+      "icon": "simple-icons:stripe",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Sendcloud",
+      "description": "Labels and tracking for the shop and the portal, with the carrier's daily pickup.",
+      "icon": "lucide:truck",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6430caca-074a-5dcf-bba0-a71284c92a02",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Mailchimp",
+      "description": "The first newsletter tool. Replaced when the subscription reminders needed shop data.",
+      "icon": "simple-icons:mailchimp",
+      "architectureLevel": null,
+      "lifecyclePhase": "retired",
+      "validFrom": "2018-01-01",
+      "validTo": "2023-04-01"
+    },
+    {
+      "id": "23cd0c38-8373-5272-b6fb-2a2739543c95",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Klaviyo",
+      "description": "Newsletter, abandoned carts, subscription reminders, fed from Shopify.",
+      "icon": "lucide:megaphone",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2023-03-01",
+      "validTo": null
+    },
+    {
+      "id": "384fe648-7302-5137-9ea1-a69901d85f6d",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Shared Support Inbox",
+      "description": "A Google Groups address both managers watch. The support desk, such as it is.",
+      "icon": "lucide:inbox",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Google Workspace",
+      "description": "Mail, Drive, the sheets, and everyone's login.",
+      "icon": "simple-icons:google",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "c308389d-3251-5499-a40f-f51a3d81f144",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Slack",
+      "description": "The roast plan photo lives here, among other things.",
+      "icon": "simple-icons:slack",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "f847e1f8-5d53-5db9-ae63-dfed9007501d",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Planday",
+      "description": "Shift scheduling for the cafés and the roastery.",
+      "icon": "lucide:calendar",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2022-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6b2f9335-ada8-53b5-9e04-ecbe6220eef4",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Payroll (run by the accountant)",
+      "description": "The accountant's payroll software, fed from Planday's hours each month.",
+      "icon": "lucide:banknote",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "a5650e45-17a5-5d95-a087-27b552139500",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Canva",
+      "description": "Labels, menus, posts.",
+      "icon": "simple-icons:canva",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "e8f83e22-bac3-57c2-9cb3-1bb3663473f0",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Cloudflare",
+      "description": "DNS for the domain, in front of the shop and the portal.",
+      "icon": "simple-icons:cloudflare",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "b8dbbd52-26f0-5b13-bc06-58856930ed28",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "solution",
+      "name": "Roastery Network",
+      "description": "A router, a switch, the roaster's PC, and the Wi-Fi the terminals in the Northside café also use.",
+      "icon": "lucide:router",
+      "architectureLevel": null,
+      "lifecyclePhase": "active",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    }
+  ],
+  "buildingBlockArchitectureDomains": [
+    {
+      "buildingBlockId": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "d3fc5d99-dd30-5490-ba5a-a3ee23af4770",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "14a3a803-920a-5f61-816c-0edbd48ca706",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "9584031e-9857-5d74-a8f6-d437405c488b",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "c6fb2b09-f203-5cc3-b190-7b46593d95d2",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "c9f0a21d-a5b9-5886-bd18-41f760d9332e",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "c9f0a21d-a5b9-5886-bd18-41f760d9332e",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "e2bc09aa-ab0c-5648-a14d-b66af775e975",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "6364d773-009c-5490-8a64-8a1eaccecf3a",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "a9729ca9-04b7-5421-8a29-576f20d21a5f",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "3e09afc2-1434-5bc1-b335-618ad93a3bbc",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "bc90819c-405d-50e7-b793-843c9adb9405",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "a08a183d-5de8-5128-b03d-688c38492a9e",
+      "architectureDomainId": "93ca6cbc-3629-5245-adab-6fe9916041d0"
+    },
+    {
+      "buildingBlockId": "e6ffe9c5-2581-5acf-aad4-87279dcb27f1",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "be6a86da-7922-5252-886c-2808dd838883",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "e89af09e-7db9-53f5-9a28-3f402047f9c1",
+      "architectureDomainId": "93ca6cbc-3629-5245-adab-6fe9916041d0"
+    },
+    {
+      "buildingBlockId": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "1d9174a2-a019-57c5-95df-e120b0821018",
+      "architectureDomainId": "218e94ab-0ac5-536a-85c7-59f9779d9998"
+    },
+    {
+      "buildingBlockId": "1d9174a2-a019-57c5-95df-e120b0821018",
+      "architectureDomainId": "93ca6cbc-3629-5245-adab-6fe9916041d0"
+    },
+    {
+      "buildingBlockId": "99eba4ca-90bb-5d18-951b-58de63938a7c",
+      "architectureDomainId": "93ca6cbc-3629-5245-adab-6fe9916041d0"
+    },
+    {
+      "buildingBlockId": "1b6ed260-f3b7-592a-85c0-d5c1275a560e",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "6430caca-074a-5dcf-bba0-a71284c92a02",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "23cd0c38-8373-5272-b6fb-2a2739543c95",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "384fe648-7302-5137-9ea1-a69901d85f6d",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "c308389d-3251-5499-a40f-f51a3d81f144",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "f847e1f8-5d53-5db9-ae63-dfed9007501d",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "6b2f9335-ada8-53b5-9e04-ecbe6220eef4",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "a5650e45-17a5-5d95-a087-27b552139500",
+      "architectureDomainId": "86fc54bd-3932-5f21-a2d8-cb861133f1b5"
+    },
+    {
+      "buildingBlockId": "e8f83e22-bac3-57c2-9cb3-1bb3663473f0",
+      "architectureDomainId": "93ca6cbc-3629-5245-adab-6fe9916041d0"
+    },
+    {
+      "buildingBlockId": "b8dbbd52-26f0-5b13-bc06-58856930ed28",
+      "architectureDomainId": "93ca6cbc-3629-5245-adab-6fe9916041d0"
+    }
+  ],
+  "buildingBlockOrganizationUnits": [
+    {
+      "id": "a35da558-078f-5242-bf77-726aaff6b0ae",
+      "buildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "organizationUnitId": "e980985f-3ab0-581a-b6ce-ae0915ea8bfb",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "1ef7c22c-b861-5c86-b6f9-b6d8387d9b7a",
+      "buildingBlockId": "be6a86da-7922-5252-886c-2808dd838883",
+      "organizationUnitId": "42f1a6ce-5d85-554c-8b55-b7f4d72ff799",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "b458f97f-3c56-5912-a1ef-7a9060d73123",
+      "buildingBlockId": "e89af09e-7db9-53f5-9a28-3f402047f9c1",
+      "organizationUnitId": "42f1a6ce-5d85-554c-8b55-b7f4d72ff799",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "72cf3c55-d727-517b-97df-b0813073af41",
+      "buildingBlockId": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "organizationUnitId": "9c7e748b-dd96-527a-9097-4e758d668d78",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "8c4939e1-11a6-5756-abc5-ddd3ea78d20a",
+      "buildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "66327807-18a3-5266-80d9-69edb3cb15ee",
+      "buildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "f8ff1808-f95c-5f0d-9744-b1c684ff48da",
+      "buildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "59dd0429-b31f-50a0-b42d-6cb9510d8d1c",
+      "buildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "organizationUnitId": "1ccb5a52-656e-59bd-9108-c96e28f5e716",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "5d616fe5-e3e2-53eb-9056-bf814b34b2e8",
+      "buildingBlockId": "1d9174a2-a019-57c5-95df-e120b0821018",
+      "organizationUnitId": "1ccb5a52-656e-59bd-9108-c96e28f5e716",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "05cf686d-29b5-55ad-ad91-65357f134f3a",
+      "buildingBlockId": "99eba4ca-90bb-5d18-951b-58de63938a7c",
+      "organizationUnitId": "1ccb5a52-656e-59bd-9108-c96e28f5e716",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "f03ad9e0-c1ae-5f89-9ce4-fc282f5eb882",
+      "buildingBlockId": "1b6ed260-f3b7-592a-85c0-d5c1275a560e",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "78786abe-4f0e-5c5f-b7ec-e4ecbff892b9",
+      "buildingBlockId": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "organizationUnitId": "9c7e748b-dd96-527a-9097-4e758d668d78",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "b55b7e8b-77df-59c8-891b-dc8e57b45118",
+      "buildingBlockId": "6430caca-074a-5dcf-bba0-a71284c92a02",
+      "organizationUnitId": "e980985f-3ab0-581a-b6ce-ae0915ea8bfb",
+      "validFrom": "2018-01-01",
+      "validTo": "2023-04-01"
+    },
+    {
+      "id": "f35a6253-a217-5cfd-bbe2-b0db09b7e58f",
+      "buildingBlockId": "23cd0c38-8373-5272-b6fb-2a2739543c95",
+      "organizationUnitId": "e980985f-3ab0-581a-b6ce-ae0915ea8bfb",
+      "validFrom": "2023-03-01",
+      "validTo": null
+    },
+    {
+      "id": "f9131b4b-9348-5b7e-afe3-8c47a10a7cdd",
+      "buildingBlockId": "384fe648-7302-5137-9ea1-a69901d85f6d",
+      "organizationUnitId": "e980985f-3ab0-581a-b6ce-ae0915ea8bfb",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "69a71ea6-c57d-5403-96ec-af3fbd7cef0a",
+      "buildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "6b347a39-1a5a-5b14-9b91-053ac40f31d6",
+      "buildingBlockId": "c308389d-3251-5499-a40f-f51a3d81f144",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "70598a51-498b-582d-9ebf-d2ca20fe4fee",
+      "buildingBlockId": "f847e1f8-5d53-5db9-ae63-dfed9007501d",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2022-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6be86303-ca1b-5aec-ba3b-3e2f45474ce1",
+      "buildingBlockId": "6b2f9335-ada8-53b5-9e04-ecbe6220eef4",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "84309d98-afc6-588a-b14e-21563853c79a",
+      "buildingBlockId": "a5650e45-17a5-5d95-a087-27b552139500",
+      "organizationUnitId": "e980985f-3ab0-581a-b6ce-ae0915ea8bfb",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "64a2f829-76d6-5286-bac4-ada7e3af1c3a",
+      "buildingBlockId": "e8f83e22-bac3-57c2-9cb3-1bb3663473f0",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "46523037-b639-5b8c-9952-687138601afd",
+      "buildingBlockId": "b8dbbd52-26f0-5b13-bc06-58856930ed28",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    }
+  ],
+  "buildingBlockRealizations": [
+    {
+      "id": "04f5c904-d059-5ff7-8b95-84d06a45ab42",
+      "architectureBuildingBlockId": "d3fc5d99-dd30-5490-ba5a-a3ee23af4770",
+      "solutionBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "d7d958ec-10d2-5589-8a66-722f5d2aca82",
+      "architectureBuildingBlockId": "e6ffe9c5-2581-5acf-aad4-87279dcb27f1",
+      "solutionBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6a784b11-1694-5fbb-b0b9-f88ef1360e81",
+      "architectureBuildingBlockId": "e6ffe9c5-2581-5acf-aad4-87279dcb27f1",
+      "solutionBuildingBlockId": "1b6ed260-f3b7-592a-85c0-d5c1275a560e",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "a008a79b-f874-57b6-a9a2-785758a29cab",
+      "architectureBuildingBlockId": "14a3a803-920a-5f61-816c-0edbd48ca706",
+      "solutionBuildingBlockId": "be6a86da-7922-5252-886c-2808dd838883",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "c1f95cf5-aa7e-5780-81d5-0c0c370a3fcb",
+      "architectureBuildingBlockId": "14a3a803-920a-5f61-816c-0edbd48ca706",
+      "solutionBuildingBlockId": "e89af09e-7db9-53f5-9a28-3f402047f9c1",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "d907a05d-7cfd-57f3-9b00-0bd76f6dad5c",
+      "architectureBuildingBlockId": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "solutionBuildingBlockId": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "371775b0-e9f7-5def-a47e-cf11e54dd230",
+      "architectureBuildingBlockId": "c6fb2b09-f203-5cc3-b190-7b46593d95d2",
+      "solutionBuildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "fb2d89df-9f02-59ad-b9ef-ff80fc224317",
+      "architectureBuildingBlockId": "c6fb2b09-f203-5cc3-b190-7b46593d95d2",
+      "solutionBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "validFrom": "2027-01-01",
+      "validTo": null
+    },
+    {
+      "id": "86e6e161-c25c-5491-91f6-e2cc234e52b0",
+      "architectureBuildingBlockId": "c9f0a21d-a5b9-5886-bd18-41f760d9332e",
+      "solutionBuildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "236535f0-c5e6-5e21-9610-4b5edbe59e91",
+      "architectureBuildingBlockId": "c9f0a21d-a5b9-5886-bd18-41f760d9332e",
+      "solutionBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "c56c617f-dfaa-5065-b428-91baa688e3b6",
+      "architectureBuildingBlockId": "9584031e-9857-5d74-a8f6-d437405c488b",
+      "solutionBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "d2b8d62d-2371-5589-8642-11cde481f6d8",
+      "architectureBuildingBlockId": "9584031e-9857-5d74-a8f6-d437405c488b",
+      "solutionBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "779d4c68-639b-5633-b6d6-c90bfa563088",
+      "architectureBuildingBlockId": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "solutionBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "1c30fbd5-834b-5b76-8cd2-fff16246ff67",
+      "architectureBuildingBlockId": "e2bc09aa-ab0c-5648-a14d-b66af775e975",
+      "solutionBuildingBlockId": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "8c59975c-b2f3-5695-a8dd-f804c17fbf3a",
+      "architectureBuildingBlockId": "6364d773-009c-5490-8a64-8a1eaccecf3a",
+      "solutionBuildingBlockId": "6430caca-074a-5dcf-bba0-a71284c92a02",
+      "validFrom": "2018-01-01",
+      "validTo": "2023-04-01"
+    },
+    {
+      "id": "638777d4-1d7a-59cd-88fc-21c9fc1dad8d",
+      "architectureBuildingBlockId": "6364d773-009c-5490-8a64-8a1eaccecf3a",
+      "solutionBuildingBlockId": "23cd0c38-8373-5272-b6fb-2a2739543c95",
+      "validFrom": "2023-03-01",
+      "validTo": null
+    },
+    {
+      "id": "cb31ad68-ed17-5eb4-9fc4-9ba9cfc01b4c",
+      "architectureBuildingBlockId": "a9729ca9-04b7-5421-8a29-576f20d21a5f",
+      "solutionBuildingBlockId": "384fe648-7302-5137-9ea1-a69901d85f6d",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "c506da70-8e37-58fe-bacd-46ed81d21017",
+      "architectureBuildingBlockId": "3e09afc2-1434-5bc1-b335-618ad93a3bbc",
+      "solutionBuildingBlockId": "f847e1f8-5d53-5db9-ae63-dfed9007501d",
+      "validFrom": "2022-04-01",
+      "validTo": null
+    },
+    {
+      "id": "732579a1-8073-5094-9fa7-e1a6b89ce15b",
+      "architectureBuildingBlockId": "3e09afc2-1434-5bc1-b335-618ad93a3bbc",
+      "solutionBuildingBlockId": "6b2f9335-ada8-53b5-9e04-ecbe6220eef4",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "48a9d93a-dcee-5062-b902-de5312353a4b",
+      "architectureBuildingBlockId": "bc90819c-405d-50e7-b793-843c9adb9405",
+      "solutionBuildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "533a3cb7-0b59-5494-a7fe-3b1ba0acd9b5",
+      "architectureBuildingBlockId": "bc90819c-405d-50e7-b793-843c9adb9405",
+      "solutionBuildingBlockId": "c308389d-3251-5499-a40f-f51a3d81f144",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "dcdc7546-ba5d-5fdc-9469-3f401b4f3b1c",
+      "architectureBuildingBlockId": "a08a183d-5de8-5128-b03d-688c38492a9e",
+      "solutionBuildingBlockId": "99eba4ca-90bb-5d18-951b-58de63938a7c",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "0da1f39c-1e99-5269-b6a6-3b1c817011ea",
+      "architectureBuildingBlockId": "a08a183d-5de8-5128-b03d-688c38492a9e",
+      "solutionBuildingBlockId": "e8f83e22-bac3-57c2-9cb3-1bb3663473f0",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    }
+  ],
+  "buildingBlockCapabilities": [
+    {
+      "id": "f8d3567e-d2bd-5cbd-90a8-aa79bebda168",
+      "buildingBlockId": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "95ce1e0a-c0e2-57c5-b9e0-a988318af2db",
+      "buildingBlockId": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "125070f4-2b75-5ab7-85aa-72c8dc193973",
+      "buildingBlockId": "1b81d393-755b-5bac-a4b5-4d8004f70799",
+      "capabilityId": "75919999-c709-51ee-b2e3-e563377d0275",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "7c821d76-04bc-57d6-ba68-fba51f0c9662",
+      "buildingBlockId": "c9f0a21d-a5b9-5886-bd18-41f760d9332e",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "7239abc2-d21a-5b24-9b3d-c08de9e3cee7",
+      "buildingBlockId": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "validFrom": "2025-01-01",
+      "validTo": null
+    },
+    {
+      "id": "155c7498-8134-5a23-8a79-0f83590e281e",
+      "buildingBlockId": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "validFrom": "2025-01-01",
+      "validTo": null
+    },
+    {
+      "id": "5b337189-6de6-5716-9651-9476b024b585",
+      "buildingBlockId": "d2a1c193-81d6-5973-ac78-ef05da92175a",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "validFrom": "2025-01-01",
+      "validTo": null
+    },
+    {
+      "id": "ae2a2aef-6a5d-5c7e-8431-47277686532b",
+      "buildingBlockId": "9584031e-9857-5d74-a8f6-d437405c488b",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "validFrom": "2023-01-01",
+      "validTo": null
+    },
+    {
+      "id": "e7b71a3b-d6a2-58e7-94a5-e482ec5c8c4a",
+      "buildingBlockId": "d3fc5d99-dd30-5490-ba5a-a3ee23af4770",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "5f2a2d77-3093-5d82-b5c7-b96d2c27af36",
+      "buildingBlockId": "e6ffe9c5-2581-5acf-aad4-87279dcb27f1",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "c265849f-b672-5abd-bc47-acade74dab35",
+      "buildingBlockId": "14a3a803-920a-5f61-816c-0edbd48ca706",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "505b2f04-93d3-5f75-8168-f8e275a32d5a",
+      "buildingBlockId": "e2bc09aa-ab0c-5648-a14d-b66af775e975",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6e8eb3ea-de48-52f1-b71c-3c4ca91d415e",
+      "buildingBlockId": "c6fb2b09-f203-5cc3-b190-7b46593d95d2",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "41a808ed-b23a-5085-b9cb-6ce409bda527",
+      "buildingBlockId": "6364d773-009c-5490-8a64-8a1eaccecf3a",
+      "capabilityId": "cfb23b69-c371-5550-8c65-88dbf37e692f",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "c490aaa3-ea57-5716-90c2-639d2b880e65",
+      "buildingBlockId": "a9729ca9-04b7-5421-8a29-576f20d21a5f",
+      "capabilityId": "33eda802-90f5-516d-be69-f7fa6be57bc2",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "803986ad-8fb5-5cfe-8544-8c5e0ff030a1",
+      "buildingBlockId": "3e09afc2-1434-5bc1-b335-618ad93a3bbc",
+      "capabilityId": "67194ccf-c767-53ef-9caf-c9e2652b0c78",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "3b60831b-bd12-5ee4-855d-348fae855827",
+      "buildingBlockId": "bc90819c-405d-50e7-b793-843c9adb9405",
+      "capabilityId": "7dc6faf5-6ee0-5114-8a46-aa697618e6c3",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "8bc5fb56-cc43-5283-9d15-b0568fb10032",
+      "buildingBlockId": "a08a183d-5de8-5128-b03d-688c38492a9e",
+      "capabilityId": "7dc6faf5-6ee0-5114-8a46-aa697618e6c3",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    }
+  ],
+  "buildingBlockRelationships": [
+    {
+      "id": "1588c638-38a7-5eb1-b0ad-885adf8b8da9",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "99eba4ca-90bb-5d18-951b-58de63938a7c",
+      "type": "hosted_on",
+      "description": null,
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "3e65f3ac-a5c3-5c63-9ecc-5a1d05b2700b",
+      "sourceBuildingBlockId": "e89af09e-7db9-53f5-9a28-3f402047f9c1",
+      "targetBuildingBlockId": "b8dbbd52-26f0-5b13-bc06-58856930ed28",
+      "type": "hosted_on",
+      "description": null,
+      "validFrom": "2016-03-01",
+      "validTo": "2022-04-01"
+    },
+    {
+      "id": "266df95e-cb94-56fe-b013-94b46bbf89bf",
+      "sourceBuildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "targetBuildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "type": "hosted_on",
+      "description": null,
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "d9868f50-d043-57ee-87fc-c3bc1d5c87f2",
+      "sourceBuildingBlockId": "384fe648-7302-5137-9ea1-a69901d85f6d",
+      "targetBuildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "type": "hosted_on",
+      "description": null,
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "bbca5b47-3b12-5956-830f-2c552467c577",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "1d9174a2-a019-57c5-95df-e120b0821018",
+      "type": "depends_on",
+      "description": null,
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "9ff543ee-e9a7-5710-889d-31bb3f227244",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "1b6ed260-f3b7-592a-85c0-d5c1275a560e",
+      "type": "depends_on",
+      "description": null,
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "50714891-2861-55c1-8204-9fa19858f49b",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "type": "depends_on",
+      "description": "Staff sign in with their Google account.",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "21a215c0-0b3b-5d15-93d6-8f09fead13f9",
+      "sourceBuildingBlockId": "be6a86da-7922-5252-886c-2808dd838883",
+      "targetBuildingBlockId": "e89af09e-7db9-53f5-9a28-3f402047f9c1",
+      "type": "depends_on",
+      "description": null,
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "84c04c99-0f74-5490-a44c-145b552a0944",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "e8f83e22-bac3-57c2-9cb3-1bb3663473f0",
+      "type": "depends_on",
+      "description": null,
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "683f8874-b401-50f2-987b-022fc1f7c615",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "e8f83e22-bac3-57c2-9cb3-1bb3663473f0",
+      "type": "depends_on",
+      "description": null,
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "46b5620a-63b1-5c96-805b-8cc916e02940",
+      "sourceBuildingBlockId": "23cd0c38-8373-5272-b6fb-2a2739543c95",
+      "targetBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "type": "depends_on",
+      "description": null,
+      "validFrom": "2023-03-01",
+      "validTo": null
+    },
+    {
+      "id": "998df8ca-471d-57e6-9cfc-0eb9934bf08e",
+      "sourceBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "targetBuildingBlockId": "de1147bd-d364-5c41-9bf6-0047a29e8eec",
+      "type": "depends_on",
+      "description": "Single sign-on.",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "8153af76-eb29-5a4f-b581-e1a7ff48928f",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "type": "data_flow",
+      "description": "Daily payout summaries.",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "4f0669d7-dcc0-50df-82e5-b5f159236b1c",
+      "sourceBuildingBlockId": "be6a86da-7922-5252-886c-2808dd838883",
+      "targetBuildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "type": "data_flow",
+      "description": "Daily payout summaries.",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "d3007e3c-20aa-59ae-b729-3e4e35d3233f",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "type": "data_flow",
+      "description": "One invoice per order.",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "3d90c380-561f-5a4d-8ec1-58c98f25b449",
+      "sourceBuildingBlockId": "1b6ed260-f3b7-592a-85c0-d5c1275a560e",
+      "targetBuildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "type": "data_flow",
+      "description": null,
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "484644fe-4e69-527b-8681-73eca99db5f1",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "type": "data_flow",
+      "description": "Orders to ship.",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "572a830a-96e0-5cdb-a569-c2cb5b8e1bd9",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "type": "data_flow",
+      "description": null,
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "fc719a3c-8a03-5c95-aeac-24cb06c16a4c",
+      "sourceBuildingBlockId": "fefdf07e-7609-5ba0-97ef-eb8bc0731fb8",
+      "targetBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "type": "data_flow",
+      "description": "Tracking numbers.",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "7da9d2cb-8c16-5cb4-b8bf-520435671ee9",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "23cd0c38-8373-5272-b6fb-2a2739543c95",
+      "type": "data_flow",
+      "description": "Customers, orders, subscriptions.",
+      "validFrom": "2023-03-01",
+      "validTo": null
+    },
+    {
+      "id": "db46092e-614a-57b4-b215-d5046d036a9b",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "6430caca-074a-5dcf-bba0-a71284c92a02",
+      "type": "data_flow",
+      "description": null,
+      "validFrom": "2020-04-01",
+      "validTo": "2023-04-01"
+    },
+    {
+      "id": "35782167-0775-5406-bb50-108b19cd4558",
+      "sourceBuildingBlockId": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "targetBuildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "type": "data_flow",
+      "description": "Batches, copied by hand every Friday.",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "36681d18-042c-5da0-85c8-59e714ecc64a",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "type": "data_flow",
+      "description": "Bags sold, exported weekly.",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "9c1994b0-a255-5b4f-8ac6-6ef441a7fe87",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "fd4ee140-3907-5947-a62c-94762d812a92",
+      "type": "data_flow",
+      "description": "Wholesale kilograms, exported weekly.",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "3678f547-fe26-5e6b-98d1-ddb06e756ff2",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "c308389d-3251-5499-a40f-f51a3d81f144",
+      "type": "data_flow",
+      "description": "New-order notifications.",
+      "validFrom": "2025-05-01",
+      "validTo": null
+    },
+    {
+      "id": "c766e16d-3cc2-574f-bdbc-e31deeb3c9ca",
+      "sourceBuildingBlockId": "f847e1f8-5d53-5db9-ae63-dfed9007501d",
+      "targetBuildingBlockId": "6b2f9335-ada8-53b5-9e04-ecbe6220eef4",
+      "type": "data_flow",
+      "description": "Hours per person per month.",
+      "validFrom": "2022-04-01",
+      "validTo": null
+    },
+    {
+      "id": "ecf6901c-1fe1-559e-823d-aa822bacd51e",
+      "sourceBuildingBlockId": "fbfa4e09-b9c5-5eb8-a72f-b6e36cb96a99",
+      "targetBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "type": "data_flow",
+      "description": "Batches, once the ERP is live.",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "472d0d09-fa64-5475-8b1b-800ecf8853b4",
+      "sourceBuildingBlockId": "5eacc61c-ebd8-5958-854f-47c4cc33f990",
+      "targetBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "type": "data_flow",
+      "description": null,
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "c1120449-6299-52ea-a3e5-4e972c69f04a",
+      "sourceBuildingBlockId": "24ae36f0-6000-5893-8acb-99f9e96758eb",
+      "targetBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "type": "data_flow",
+      "description": "Orders, until the portal is replaced by Odoo's own.",
+      "validFrom": "2026-07-01",
+      "validTo": null
+    },
+    {
+      "id": "44029a73-bb53-5289-b063-b944e29a9e70",
+      "sourceBuildingBlockId": "5430f351-dd68-571e-9d08-ec0e9a4efa6c",
+      "targetBuildingBlockId": "aaae5126-e55f-5472-8e6e-2d001f69842b",
+      "type": "data_flow",
+      "description": "Invoices, until the books move too.",
+      "validFrom": "2026-07-01",
+      "validTo": "2027-01-01"
+    }
+  ],
+  "informationObjects": [
+    {
+      "id": "36a63cb7-4401-59fd-ac0f-b0b697d63e47",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Green Coffee Lot",
+      "description": "A purchased lot: origin, farm, process, bags, price, cupping score, where it is."
+    },
+    {
+      "id": "de47e703-18c4-5e89-8c2b-3689c4893865",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Roast Profile",
+      "description": "How a coffee is roasted: the curve, the drop temperature, the reference batch."
+    },
+    {
+      "id": "4ea1f552-1c79-5bdb-a4fd-26bbb9f10f9c",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Roast Batch",
+      "description": "One run of the roaster: lot in, kilograms out, profile, who, when, score."
+    },
+    {
+      "id": "c23b7694-11a1-5963-82f0-ce51dc3d9c4b",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Product",
+      "description": "Something that can be sold: a coffee in a bag size, a subscription, a drink."
+    },
+    {
+      "id": "2fd34367-f61e-54e6-b2fb-07244402b839",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Wholesale Customer",
+      "description": "A café or office: contact, price list, standing order, delivery day, grinder."
+    },
+    {
+      "id": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Order",
+      "description": "What someone wants, from any channel."
+    },
+    {
+      "id": "f896d6ea-afea-5efb-bec5-5657b0857b60",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Invoice",
+      "description": "What they owe, and whether they paid."
+    },
+    {
+      "id": "2bd2b0fa-e66d-59ff-a894-23d2793a618d",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Stock Level",
+      "description": "Kilograms of green per lot and bags of roasted per product, right now. Three places claim to know it."
+    },
+    {
+      "id": "5eea72e5-812e-501a-9db5-f2a7567b6577",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Cupping Score",
+      "description": "A graded tasting of a lot or a batch."
+    },
+    {
+      "id": "44b26290-fd5e-5c70-b3bd-e838d894fe19",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Employee",
+      "description": "Contract, hourly rate, which site, certifications."
+    },
+    {
+      "id": "ff40df5f-3e21-5370-955d-122748b9e61f",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "name": "Shift Schedule",
+      "description": "Who is where this week."
+    }
+  ],
+  "capabilityInformation": [
+    {
+      "id": "98315e05-500e-5f6f-a4de-357a6cfe5701",
+      "capabilityId": "75919999-c709-51ee-b2e3-e563377d0275",
+      "informationObjectId": "36a63cb7-4401-59fd-ac0f-b0b697d63e47",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "e42b0123-a49b-5384-a162-ad0c1d26c39a",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "informationObjectId": "5eea72e5-812e-501a-9db5-f2a7567b6577",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "ea934b6e-bce1-5fa3-89dc-234a6c94bd28",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "informationObjectId": "36a63cb7-4401-59fd-ac0f-b0b697d63e47",
+      "usage": "uses",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "b70b8033-b2f0-53f7-87c5-255aa3796ff1",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "informationObjectId": "de47e703-18c4-5e89-8c2b-3689c4893865",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "cf8ecd70-b432-5bda-9e64-f058e26200aa",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "informationObjectId": "4ea1f552-1c79-5bdb-a4fd-26bbb9f10f9c",
+      "usage": "creates",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "d381417e-ed71-5872-9b7e-74f039c085df",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "informationObjectId": "c23b7694-11a1-5963-82f0-ce51dc3d9c4b",
+      "usage": "uses",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "2a9af01f-9965-5582-9138-c7ec399a4b4b",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "informationObjectId": "2bd2b0fa-e66d-59ff-a894-23d2793a618d",
+      "usage": "owns",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "22ffa29e-b101-5908-a33f-3d8e88fb3865",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "informationObjectId": "4ea1f552-1c79-5bdb-a4fd-26bbb9f10f9c",
+      "usage": "uses",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "927cb2b8-4349-5b19-9f10-01b132e73ad2",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "informationObjectId": "36a63cb7-4401-59fd-ac0f-b0b697d63e47",
+      "usage": "uses",
+      "validFrom": "2019-06-01",
+      "validTo": null
+    },
+    {
+      "id": "f6d8df64-da76-5e3f-bef9-b3680d702dd9",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "informationObjectId": "2fd34367-f61e-54e6-b2fb-07244402b839",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "4168aab0-444b-5b38-9a3c-ae8bff53a0c8",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "informationObjectId": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "usage": "creates",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "777a804f-6a23-55ce-afc6-4f364d86fff0",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "informationObjectId": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "usage": "creates",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "4f633e27-f3b8-5c3d-aac5-aeed33fd70cf",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "informationObjectId": "c23b7694-11a1-5963-82f0-ce51dc3d9c4b",
+      "usage": "owns",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "db273712-71fd-59ac-bf9a-d76838fdf765",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "informationObjectId": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "usage": "creates",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "f733cad5-ad49-59d6-9e3e-a1040f76634a",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "informationObjectId": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "81825518-066e-5ce8-8cbe-8f56a3a0211c",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "informationObjectId": "2bd2b0fa-e66d-59ff-a894-23d2793a618d",
+      "usage": "uses",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "bc3b9f40-bd2c-5e79-afee-c9138cfad2c8",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "informationObjectId": "f896d6ea-afea-5efb-bec5-5657b0857b60",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "77df7673-80f8-5516-8887-0e4b6a5b9895",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "informationObjectId": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "usage": "uses",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "25376c6d-c15a-51c9-abe2-61ec5e801725",
+      "capabilityId": "67194ccf-c767-53ef-9caf-c9e2652b0c78",
+      "informationObjectId": "44b26290-fd5e-5c70-b3bd-e838d894fe19",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "81cc6b8a-d1cf-5c07-ab90-e9158f00c450",
+      "capabilityId": "67194ccf-c767-53ef-9caf-c9e2652b0c78",
+      "informationObjectId": "ff40df5f-3e21-5370-955d-122748b9e61f",
+      "usage": "owns",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "6c182b89-74e8-5c7e-932a-bc9017ecd855",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "informationObjectId": "ff40df5f-3e21-5370-955d-122748b9e61f",
+      "usage": "uses",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "21950716-6a0f-52f3-a49c-d496048fc725",
+      "capabilityId": "cfb23b69-c371-5550-8c65-88dbf37e692f",
+      "informationObjectId": "2fd34367-f61e-54e6-b2fb-07244402b839",
+      "usage": "uses",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "582e34dc-a77c-5a36-adad-a1b58f3c6696",
+      "capabilityId": "33eda802-90f5-516d-be69-f7fa6be57bc2",
+      "informationObjectId": "38a05839-51fb-5090-918c-b214bbbf4cde",
+      "usage": "uses",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    }
+  ],
+  "actors": [
+    {
+      "id": "e3c87854-75c2-5169-bd6d-4a9d1aa91c45",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "role",
+      "name": "Founder, Managing Director",
+      "description": "Runs everything that is not roasting. Owns the ERP decision.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "ccca1da7-995e-581d-aa7f-ae07516628a9",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "role",
+      "name": "Founder, Head Roaster",
+      "description": "Sourcing, profiles, quality. The palate the brand is built on.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "a31509cb-3525-5c3a-984b-7728a7110f10",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "role",
+      "name": "Wholesale Manager",
+      "description": "",
+      "organizationUnitId": null
+    },
+    {
+      "id": "57a8b4dc-b8fd-58e0-8790-fda690e590b8",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "role",
+      "name": "Café Manager",
+      "description": "One manager for both shops since 2024.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "0b70d14d-9d23-52b7-b5b9-faa50b306261",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "role",
+      "name": "Online Shop Manager",
+      "description": "",
+      "organizationUnitId": null
+    },
+    {
+      "id": "6f4a1d60-2da7-58ad-9c52-eb35fecd39b3",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "role",
+      "name": "Operations Lead",
+      "description": "Orders, packing, shipping, and the inventory sheets.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "59b901d7-993f-5664-81c7-fb35afb3b918",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "team",
+      "name": "Roastery Team",
+      "description": "",
+      "organizationUnitId": "9c7e748b-dd96-527a-9097-4e758d668d78"
+    },
+    {
+      "id": "5582078e-4d92-5787-b701-397dde34cbcf",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "team",
+      "name": "Northside Café Team",
+      "description": "",
+      "organizationUnitId": "010d83a2-7af8-5676-a61c-99373d4cf643"
+    },
+    {
+      "id": "4a5ba5c0-b020-54f4-b217-4d5432be9e01",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "team",
+      "name": "Station Café Team",
+      "description": "",
+      "organizationUnitId": "41ffbdac-b204-5625-b8e3-0ede204c15d4"
+    },
+    {
+      "id": "0f8e9d23-1e41-5226-becb-06a57d33950a",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "team",
+      "name": "Back Office",
+      "description": "",
+      "organizationUnitId": "0c814f3e-ed2b-5ddc-8073-b5da322510cc"
+    },
+    {
+      "id": "676c3ab9-497a-5fc7-a31a-ea76aaf9189b",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "individual",
+      "name": "Mara Lindqvist, built the inventory sheets",
+      "description": "Left in 2024. The sheets still carry her formulas and nobody else understands the green-stock tab.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "17eba0de-4878-5339-91bf-3dfc4000e5db",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "external",
+      "name": "Green Coffee Importer",
+      "description": "Supplies most lots; holds stock in its warehouse until called off.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "e7427df9-709c-5253-b506-161ac9944024",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "external",
+      "name": "Parcel Carrier",
+      "description": "Collects daily at four.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "3ced1da4-dbe1-5b0f-a16b-4502750db734",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "external",
+      "name": "External Accountant",
+      "description": "Payroll, VAT, year-end. Has a login to the books.",
+      "organizationUnitId": null
+    },
+    {
+      "id": "b7f17cac-5e98-5605-8969-c332d6c7df80",
+      "enterpriseId": "347fd89f-432f-5eec-9185-8f6d1512b290",
+      "kind": "external",
+      "name": "Shopify Agency",
+      "description": "Built and maintains the online shop's theme.",
+      "organizationUnitId": null
+    }
+  ],
+  "capabilityActors": [
+    {
+      "id": "8e78109a-6f1b-5e62-8150-b6dac1e22e05",
+      "capabilityId": "75919999-c709-51ee-b2e3-e563377d0275",
+      "actorId": "ccca1da7-995e-581d-aa7f-ae07516628a9",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "3d38beed-c705-5312-8959-f00fd747969a",
+      "capabilityId": "75919999-c709-51ee-b2e3-e563377d0275",
+      "actorId": "17eba0de-4878-5339-91bf-3dfc4000e5db",
+      "involvement": "consulted",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "347fcf2f-a01b-5258-8ffe-dfa708220088",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "actorId": "ccca1da7-995e-581d-aa7f-ae07516628a9",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "34b2eb5d-6874-5f8d-a74a-6911fcc187f5",
+      "capabilityId": "37505960-ad2b-51a4-9d55-327f5df3d8c3",
+      "actorId": "59b901d7-993f-5664-81c7-fb35afb3b918",
+      "involvement": "performs",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "84fb74c4-feac-5517-9bd2-5746b3edbb48",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "actorId": "ccca1da7-995e-581d-aa7f-ae07516628a9",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "965fc99e-212d-55c6-9fdc-1562aa9af8c1",
+      "capabilityId": "615b38fb-933a-5758-9592-d398ee5de971",
+      "actorId": "59b901d7-993f-5664-81c7-fb35afb3b918",
+      "involvement": "performs",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "58b29de6-88f9-5a95-a43f-0566eb14c08f",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "actorId": "a31509cb-3525-5c3a-984b-7728a7110f10",
+      "involvement": "accountable",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "5009c017-446b-5c55-8700-e12a2d078615",
+      "capabilityId": "3eaa06b4-9cf6-50a7-a4aa-e905bca7749e",
+      "actorId": "e3c87854-75c2-5169-bd6d-4a9d1aa91c45",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": "2019-01-01"
+    },
+    {
+      "id": "a594a6fe-342c-5638-999d-fe53893c4d11",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "actorId": "57a8b4dc-b8fd-58e0-8790-fda690e590b8",
+      "involvement": "accountable",
+      "validFrom": "2024-01-01",
+      "validTo": null
+    },
+    {
+      "id": "d24237df-498d-5233-85f3-2bbcbb569776",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "actorId": "e3c87854-75c2-5169-bd6d-4a9d1aa91c45",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": "2024-01-01"
+    },
+    {
+      "id": "4af5f07e-eadf-5bc9-a038-7fea6038e6f9",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "actorId": "5582078e-4d92-5787-b701-397dde34cbcf",
+      "involvement": "performs",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "b89e9f33-c0af-5d7a-af81-598076845717",
+      "capabilityId": "226385a5-a3fd-5ed4-b145-05b707f67741",
+      "actorId": "4a5ba5c0-b020-54f4-b217-4d5432be9e01",
+      "involvement": "performs",
+      "validFrom": "2022-04-01",
+      "validTo": null
+    },
+    {
+      "id": "e1e9801b-5ba9-520a-9d7f-74b32a8492e3",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "actorId": "0b70d14d-9d23-52b7-b5b9-faa50b306261",
+      "involvement": "accountable",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "b66e04c4-1ae2-5aa5-856e-9ebf632513b6",
+      "capabilityId": "4ef5531f-cdc2-5b40-8782-7a920f4e7854",
+      "actorId": "b7f17cac-5e98-5605-8969-c332d6c7df80",
+      "involvement": "consulted",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "fce1994b-849e-552e-8f9d-c5aec0981a96",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "actorId": "6f4a1d60-2da7-58ad-9c52-eb35fecd39b3",
+      "involvement": "accountable",
+      "validFrom": "2021-01-01",
+      "validTo": null
+    },
+    {
+      "id": "8c63decb-3d13-5424-abaa-123f9ed4ecbf",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "actorId": "59b901d7-993f-5664-81c7-fb35afb3b918",
+      "involvement": "performs",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "5e561d3c-5ba9-56c9-8da1-0f8b9bea23f3",
+      "capabilityId": "5a30ddad-96d0-5b8b-a031-05c98c1be2fe",
+      "actorId": "e7427df9-709c-5253-b506-161ac9944024",
+      "involvement": "performs",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "96769765-1bf4-5f58-aeb7-9a339ee48159",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "actorId": "6f4a1d60-2da7-58ad-9c52-eb35fecd39b3",
+      "involvement": "accountable",
+      "validFrom": "2021-01-01",
+      "validTo": null
+    },
+    {
+      "id": "7e2e705b-b325-5d29-90a1-55bf369b6db8",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "actorId": "676c3ab9-497a-5fc7-a31a-ea76aaf9189b",
+      "involvement": "performs",
+      "validFrom": "2019-06-01",
+      "validTo": "2024-03-01"
+    },
+    {
+      "id": "ab246349-038e-5964-bcf9-fcf4997fac17",
+      "capabilityId": "70fb5434-8d5d-5cf0-ae13-8e62eb8ac06c",
+      "actorId": "0f8e9d23-1e41-5226-becb-06a57d33950a",
+      "involvement": "performs",
+      "validFrom": "2024-03-01",
+      "validTo": null
+    },
+    {
+      "id": "f8d757a3-d294-50f5-a763-4a02a67c27ce",
+      "capabilityId": "cfb23b69-c371-5550-8c65-88dbf37e692f",
+      "actorId": "0b70d14d-9d23-52b7-b5b9-faa50b306261",
+      "involvement": "accountable",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "a4c417a3-e5d4-5491-b17a-962b4a9b4730",
+      "capabilityId": "33eda802-90f5-516d-be69-f7fa6be57bc2",
+      "actorId": "0b70d14d-9d23-52b7-b5b9-faa50b306261",
+      "involvement": "performs",
+      "validFrom": "2020-04-01",
+      "validTo": null
+    },
+    {
+      "id": "6700de23-31e2-54c0-b0a4-74d9ea5d1bb2",
+      "capabilityId": "33eda802-90f5-516d-be69-f7fa6be57bc2",
+      "actorId": "a31509cb-3525-5c3a-984b-7728a7110f10",
+      "involvement": "performs",
+      "validFrom": "2019-01-01",
+      "validTo": null
+    },
+    {
+      "id": "1870428b-207e-5ed1-b87a-ffec41e38b63",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "actorId": "e3c87854-75c2-5169-bd6d-4a9d1aa91c45",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "4e424703-bf94-539c-b8a8-48cbf2f44b8b",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "actorId": "0f8e9d23-1e41-5226-becb-06a57d33950a",
+      "involvement": "performs",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    },
+    {
+      "id": "40a13c89-0d3a-53d5-8f20-a987b89cb112",
+      "capabilityId": "ae6ff6c9-2c9e-5715-8d73-9af0e958ecc1",
+      "actorId": "3ced1da4-dbe1-5b0f-a16b-4502750db734",
+      "involvement": "performs",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "7ded9ba2-47ac-5b66-9fd7-5177e1bc1142",
+      "capabilityId": "67194ccf-c767-53ef-9caf-c9e2652b0c78",
+      "actorId": "e3c87854-75c2-5169-bd6d-4a9d1aa91c45",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "6433e311-2cec-5dc7-8167-934d3b8dcd0e",
+      "capabilityId": "67194ccf-c767-53ef-9caf-c9e2652b0c78",
+      "actorId": "3ced1da4-dbe1-5b0f-a16b-4502750db734",
+      "involvement": "performs",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "c5d7a6ce-918d-5bd9-b9dd-d34b0a28dc5f",
+      "capabilityId": "7dc6faf5-6ee0-5114-8a46-aa697618e6c3",
+      "actorId": "e3c87854-75c2-5169-bd6d-4a9d1aa91c45",
+      "involvement": "accountable",
+      "validFrom": "2016-03-01",
+      "validTo": null
+    },
+    {
+      "id": "bc9ab1f7-f845-54f0-94c3-4c0edc946a70",
+      "capabilityId": "7dc6faf5-6ee0-5114-8a46-aa697618e6c3",
+      "actorId": "0f8e9d23-1e41-5226-becb-06a57d33950a",
+      "involvement": "performs",
+      "validFrom": "2018-01-01",
+      "validTo": null
+    }
+  ]
+}

@@ -611,3 +611,48 @@ migration chain gets its first real step; the example bundles are regenerated
 to the new version), or the first importer is built (external ids become a
 column).
 
+---
+
+## D-25 · React Flow is the graph canvas, elk the layout; diagram-js stays inside bpmn-js
+
+**Decided:** graph views are drawn with React Flow (`@xyflow/react`, MIT)
+and laid out with elkjs (EPL-2.0). The landscape is the first. diagram-js
+is no longer a direct dependency; it remains only as what bpmn-js is built
+on, for the process diagrams, where the diagram is the source of truth and
+its modelling features (palette, rules, command stack) are the point.
+
+**How it is cut:** `landscape-graph.ts` is data only — viewpoint filtering,
+`hosted_on` as containment, the elk layout and its orthogonal routes —
+and has no DOM, so it can be tested as functions. `landscape-flow.tsx`
+draws: nodes are React components, edges a custom type that follows elk's
+route until an endpoint is dragged and the node handles after. Views are
+generated from the model; hand work, when it comes, pins positions over the
+generated layout (see IDEAS) and never replaces it.
+
+**Why:** diagram-js is imperative SVG. Every node was drawn by hand in
+tiny-svg, and nothing the rest of the app has — Tailwind, the tooltip, the
+model icon component, the theme tokens — could be used inside it. D-22
+records the cost: Lucide bundled twice because its components could not draw
+there, and a synchronous icon pipeline just for the diagram. With nodes as
+React components that cost is gone (`ModelIcon` renders inside a node like
+anywhere else; the server-side icon sets stay, for the picker, search and
+brand logos). React Flow is also what the React ecosystem builds node views
+with in 2026: sub-flows for nesting, controls, minimap and keyboard handling
+come built in instead of being wired one by one, and node positions are plain
+x/y, which makes persisting them a table rather than a project. Its layouts
+are deliberately not built in; elk remains the best layered, hierarchical
+layout available and is what React Flow's own examples pair it with.
+
+**Why elk still routes the edges:** React Flow's own edges run handle to
+handle and, on a layered landscape with sixty blocks, cross through boxes.
+elk's orthogonal routing goes around them. The custom edge draws that route
+and only falls back to handle routing for the edges a drag has made stale.
+
+**Not for everything:** React Flow renders every node as DOM and is right up
+to a few hundred blocks; thousands want Cytoscape or Sigma, as a second view.
+Capability maps, roadmaps, timelines and matrices are not graphs and belong
+in plain React, SVG or a table, not in any diagram library.
+
+**Revisit when:** a landscape with more than about a thousand visible blocks
+is wanted on one canvas, or a view needs modelling rather than viewing.
+
