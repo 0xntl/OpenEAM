@@ -39,8 +39,17 @@ docker compose --profile app up -d --build
 ```
 
 Open http://localhost:8080 and create the first account; it becomes the
-instance admin, who creates further accounts from the Administration page. Set
-`AUTH_COOKIE_SECURE=true` once the instance is behind TLS.
+instance admin, who creates further accounts from the Administration page.
+This builds the images locally and serves plain HTTP: right for a LAN box.
+
+### On the internet
+
+[deploy/](deploy/README.md) is the production shape: images published to
+GHCR by CI, a production and a staging stack side by side on one host, Caddy
+with Let's Encrypt in front, deploys from GitHub Actions (staging on every
+push to `main`, production on a `v*` tag after approval), nightly encrypted
+backups copied off the host. The runbook there sets a server up in about half
+an hour.
 
 ### For development
 

@@ -1,0 +1,35 @@
+# Routes each public hostname to the web container of one environment. The
+# container names are the aliases deploy/compose.yml registers on the `edge`
+# network: <COMPOSE_PROJECT_NAME>-web. Values in {$…} come from proxy/.env.
+#
+# Caddy adds X-Forwarded-For / -Proto / -Host; the stack's nginx appends its
+# own hop, which is why the API runs with TRUST_PROXY=2.
+
+{
+  email {$ACME_EMAIL}
+}
+
+(site) {
+  encode zstd gzip
+  header {
+    # The API's helmet sets HSTS on its own responses; this covers the SPA.
+    Strict-Transport-Security "max-age=31536000"
+    -Server
+  }
+}
+
+{$PROD_HOST} {
+  import site
+  reverse_proxy openeam-prod-web:80
+}
+
+{$STAGING_HOST} {
+  import site
+  # Staging is for the maintainers: not indexed, and a password before the
+  # app's own sign-in, so nobody else creates its first account.
+  header X-Robots-Tag "noindex, nofollow"
+  basic_auth {
+    {$STAGING_USER} {$STAGING_PASSWORD_HASH}
+  }
+  reverse_proxy openeam-staging-web:80
+}

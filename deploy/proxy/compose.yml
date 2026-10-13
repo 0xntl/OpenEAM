@@ -1,0 +1,38 @@
+# The one thing on the host that listens: Caddy, terminating TLS for every
+# environment and forwarding each hostname to that stack's web container over
+# the external `edge` network. Certificates come from Let's Encrypt and live
+# in the caddy-data volume. See deploy/README.md.
+#
+#   docker network create edge        # once
+#   cp .env.example .env              # hostnames, ACME mail, staging password
+#   docker compose up -d
+name: openeam-proxy
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  caddy-data:
+  caddy-config:

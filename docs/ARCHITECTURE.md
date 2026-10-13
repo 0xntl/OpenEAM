@@ -21,7 +21,8 @@ For development, Postgres runs in Compose and both apps run from `pnpm dev`.
 For self-hosting, `docker compose --profile app up` adds an API container
 (applies migrations, then starts) and a web container (nginx serving the SPA and
 proxying `/graphql`, `/health` and `/api` to the API, so the browser sees one
-origin). See [Deploying](#deploying).
+origin). A public instance runs the same two images, published by CI, from
+`deploy/compose.yml` behind Caddy. See [Deploying](#deploying).
 
 ## The metamodel (`packages/db`)
 
@@ -185,7 +186,9 @@ enterprise is a readable 400 naming the id, and the transaction rolls back.
   the nginx in front of the SPA. The SPA has no CSP yet; see BACKLOG.
 - **Production** — GraphiQL and introspection off, stack traces out of error
   responses, body limit 5 MB, the API not published outside the Compose
-  network.
+  network. In the `deploy/` shape nothing but Caddy is published at all: it
+  terminates TLS, sets HSTS for the SPA (helmet sets it for the API), and the
+  API runs with `TRUST_PROXY=2` (Caddy, then nginx).
 
 What is deliberately *not* done, and why, is in [DECISIONS.md](DECISIONS.md)
 D-15. Tests for these measures are the point of roadmap T1.3/T1.4; until then
@@ -340,6 +343,10 @@ headlessly.
 
 ## Deploying
 
+Two shapes, same images.
+
+**Local build, plain HTTP** — for a LAN box or a first look:
+
 ```bash
 cp .env.example .env               # set POSTGRES_PASSWORD, OPENEAM_PORT, OPENEAM_ORIGIN
 docker compose --profile app up -d --build
@@ -349,8 +356,20 @@ Three containers: Postgres, the API (`apps/api/Dockerfile`: multi-stage,
 production dependencies only, runs migrations then `node dist/main.js` as an
 unprivileged user) and the web server (`apps/web/Dockerfile`: Vite build served
 by nginx, `apps/web/nginx.conf` proxies the API paths). Only the web container
-publishes a port. CI builds both images on every push so a broken Dockerfile
-fails there.
+publishes a port.
+
+**Published images, TLS, two environments** — for an instance on the
+internet, in [deploy/](../deploy/README.md). CI builds both images on every
+push and PR (so a broken Dockerfile fails there) and publishes them to GHCR on
+`main` and on `v*` tags, as `main`, an immutable `sha-…`, `v1.2.3` and
+`latest`. `deploy/compose.yml` is one environment from those images: no
+published ports, joined to an external `edge` network where the shared Caddy
+(`deploy/proxy`) reaches its web container by alias. Prod and staging are two
+copies of it with different `.env` files on one host. The workflow deploys
+over SSH to a key whose forced command is `deploy/bin/deploy.sh` and whose
+only input is the environment and the tag; the script pins the tag, pulls,
+dumps prod, and waits for health. The reasoning is D-26 in
+[DECISIONS.md](DECISIONS.md).
 
 Open the instance and create the first account. It can always be created, it
 is the instance admin, and it inherits every enterprise already in the

@@ -656,3 +656,50 @@ in plain React, SVG or a table, not in any diagram library.
 **Revisit when:** a landscape with more than about a thousand visible blocks
 is wanted on one canvas, or a view needs modelling rather than viewing.
 
+## D-26 · Images from CI, two stacks on one host, deploys pushed over a one-command key
+
+**Decided:** a public instance runs images that CI published to GHCR, never
+images built on the server. Production and staging are two Compose projects
+on the same host from the same `deploy/compose.yml`, differing only in their
+`.env`; a shared Caddy terminates TLS and is the only published port. GitHub
+Actions deploys over SSH — staging on every push to `main` pinned to an
+immutable `sha-…` tag, production on a `v*` tag after a reviewer approves —
+to a `deploy` user whose key's forced command is `deploy/bin/deploy.sh`.
+Prod is dumped before every deploy; a timer dumps it nightly, `age` encrypts,
+`rclone` moves the dump off the host.
+
+**Why images from CI:** the server stays a machine that runs containers and
+nothing else — no Node, no source, no build memory; a deploy is a pull. The
+tag in `.env` is exactly what runs, which makes a rollback a one-line edit
+and makes "what is deployed?" answerable from the file. CI already built
+both images on every push; publishing them was the missing step.
+
+**Why staging, and why on the same host:** migrations run on API start, with
+no down path. Staging is where a migration, a dependency bump or a base image
+update fails first, on a copy of real data when a restore test wants one.
+Two stacks on one 4 GB host cost nothing extra and share nothing but the
+proxy; moving prod to its own host later is copying one folder.
+
+**Why push over SSH rather than pull-based:** a watcher on the server
+(Watchtower, a cron pulling `:main`) deploys whatever the registry holds with
+no gate and no feedback in the run that produced it. The workflow deploys
+after lint, typecheck and build passed, waits for the health checks, and
+fails visibly when they do not. The price is a key in GitHub; the forced
+command limits what that key can say to "this environment, this tag", and
+what runs — compose file, env, scripts — is placed on the server by hand, so
+a leaked key can at most redeploy a tag the repository already published.
+
+**Why Caddy, not Traefik:** two fixed hostnames need two lines of
+configuration, not label discovery, and Caddy's certificate handling has no
+settings to get wrong. Traefik earns its configuration surface when stacks
+come and go; revisit if preview environments per branch are wanted.
+
+**Not done:** multi-architecture images (amd64 only; a QEMU arm64 build
+roughly triples the job), rootless Docker (the `deploy` user is in the
+`docker` group and therefore root-equivalent, which is what the forced
+command and the environment approval compensate for), and a registry other
+than GHCR. Releases themselves — tags, changelog — are still BACKLOG T4.4;
+this decision only makes a tag mean something.
+
+**Revisit when:** a second production host exists, when a branch wants its
+own preview environment, or when someone self-hosts on arm64.

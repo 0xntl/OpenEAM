@@ -1,0 +1,81 @@
+# One OpenEAM environment from published images — the production shape.
+# Runs once per environment (prod, staging) on the same host, each as its own
+# Compose project with its own Postgres, volume and .env. Nothing is published
+# on the host; the shared Caddy in deploy/proxy reaches the web container over
+# the external `edge` network by its alias. See deploy/README.md.
+#
+#   cp .env.example .env            # fill in; COMPOSE_PROJECT_NAME names the stack
+#   docker compose pull && docker compose up -d --wait
+#
+# The repository-root compose.yml is the other shape: it builds the images
+# locally and publishes a port, for a LAN box or a first look.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-openeam}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-openeam}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openeam} -d ${POSTGRES_DB:-openeam}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: ${OPENEAM_IMAGE:-ghcr.io/0xntl/openeam}-api:${OPENEAM_TAG:?set OPENEAM_TAG in .env}
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-openeam}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-openeam}
+      # The public origin; the Origin check and CORS accept exactly this.
+      WEB_ORIGIN: https://${OPENEAM_HOST:?set OPENEAM_HOST in .env}
+      AUTH_ALLOW_SIGNUP: ${AUTH_ALLOW_SIGNUP:-false}
+      # Always behind TLS in this shape.
+      AUTH_COOKIE_SECURE: "true"
+      # Two proxies in front of the API: Caddy, then the web container's nginx.
+      # The client address (sign-in rate limit) is two X-Forwarded-For hops in.
+      TRUST_PROXY: 2
+
+  web:
+    image: ${OPENEAM_IMAGE:-ghcr.io/0xntl/openeam}-web:${OPENEAM_TAG}
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      default: {}
+      edge:
+        # What the proxy's Caddyfile names: <project>-web, e.g. openeam-prod-web.
+        aliases:
+          - ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env}-web
+    # Through nginx to the API and its database: the whole chain.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  postgres-data:

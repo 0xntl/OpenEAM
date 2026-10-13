@@ -25,7 +25,8 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   referrer and permissions headers but no CSP: `index.html` carries an inline
   theme script and bpmn-js injects styles. Needs a build step that hashes the
   inline script (or moves it to a file) and a policy that allows the style
-  injection; then `Strict-Transport-Security` once TLS is the norm.
+  injection. (`Strict-Transport-Security` is set by Caddy in the `deploy/`
+  shape; the root Compose shape serves plain HTTP and should not set it.)
 
 - **Security tests in CI** — the measures above were verified with a hand-run
   script (41 checks: session handling, CSRF vectors, cross-tenant reads and
@@ -65,15 +66,18 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   gitleaks rule file — personal risk, personal config. See D-9 in
   [DECISIONS.md](DECISIONS.md).
 
-- **Renovate and CodeQL** (T1.8) — nothing surfaces outdated packages today; a
-  manual `pnpm -r outdated` pass in 2026-08 found 31 stale ones, including a stale
-  peer-dependency ghost in `node_modules` that silently broke a typecheck. CodeQL
-  is free on public repositories.
+- **Renovate and CodeQL** (T1.8) — both are configured (`renovate.json`,
+  `.github/workflows/codeql.yml`); what remains is installing the Renovate
+  GitHub App on the repository, which only the owner can do, and triaging the
+  first dashboard. A manual `pnpm -r outdated` pass in 2026-08 had found 31
+  stale packages, including a stale peer-dependency ghost in `node_modules`
+  that silently broke a typecheck — the reason the bot exists.
 
-- **Publish container images** (T3.4) — the images build in CI but are not
-  pushed anywhere, so a self-hoster still builds locally. Push to GHCR on a tag
-  once releases exist (T4.4), and point the Compose `image:` fields at them with
-  `build:` kept as the fallback.
+- **Multi-architecture images** — CI publishes amd64 images to GHCR (T3.4
+  landed with D-26). An arm64 build would let a Mac or a Raspberry Pi
+  self-host from the registry instead of `--build`; QEMU roughly triples the
+  image job, so it wants a native arm64 runner or a nightly schedule rather
+  than every push.
 
 ## Model and data
 
@@ -114,8 +118,9 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 ## Project hygiene
 
 - **Releases mean nothing yet** (T4.4) — every package is `0.0.0`, there are no
-  tags and no CHANGELOG. A roadmap with a "release" column needs releases to be
-  things.
+  tags and no CHANGELOG. A `v*` tag now builds and deploys production (D-26),
+  so the mechanics exist; what is missing is the practice — a version bump,
+  a changelog entry and a GitHub release per tag.
 
 - **No SECURITY.md** (T4.4) — an Apache-2.0 public repository that now ships
   its own authentication needs a disclosure path. Issue templates belong here
