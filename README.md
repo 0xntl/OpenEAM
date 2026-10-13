@@ -23,7 +23,7 @@ answers.
 
 - Business capabilities, value streams with stages, business processes with BPMN modelling
 - Building blocks (architecture and solution), typed relationships, auto-laid-out landscape diagram, icons
-- Export and import of a whole enterprise as a JSON bundle
+- Export and import of a whole enterprise as a versioned JSON bundle, for backups and for moving between instances
 - Accounts with roles per enterprise (owner, editor, viewer); the first account is the instance admin
 - Instance branding: name, logo and icon
 
@@ -93,7 +93,7 @@ NestJS + GraphQL (Apollo Server) · React + Vite + TanStack Router · Postgres +
 Drizzle · TypeScript · pnpm workspaces · Biome.
 
 ```
-apps/api     NestJS backend — GraphQL, sessions, data exchange, icons, /health
+apps/api     NestJS backend — GraphQL, sessions, export/import, icons, /health
 apps/web     React + Vite SPA
 packages/db  Drizzle schema, migrations, connection
 examples/    Importable example models

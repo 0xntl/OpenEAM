@@ -163,11 +163,19 @@ to a past date is how you answer "what was running on this platform then".
 **Recency** — TOGAF's term for record metadata: when a row was created and last
 updated. Present on every table as `created_at` / `updated_at`.
 
-## Exchange
+## Export and import
 
 **Data bundle** — the JSON document the export endpoint produces and the import
-endpoint consumes. Carries one or more enterprises and everything modelled within
-them.
+endpoint consumes. A snapshot: carries one or more enterprises and everything
+modelled within them, ids and history included, for backups, for moving an
+enterprise between instances, and for keeping a copy under version control. Not
+an interchange format for other tools (D-24).
+
+**Format version** — the `formatVersion` a bundle declares. Import migrates an
+older bundle to the current version before validating it and refuses a newer
+one. A bundle without the field is version 0. A field a bundle omits reads as
+null, its default, or empty; adding such a field does not change the version,
+a rename or a changed meaning does.
 
 **Import replaces, it does not merge.** Importing a bundle deletes exactly the
 enterprises it names and recreates them. It touches no other enterprise. There is

@@ -46,9 +46,13 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   rules; this is the cheapest test anyone will ever write, and the current
   Definition of Done (lint, typecheck, build) proves only that the code compiles.
 
-- **Round-trip test on data exchange** (T1.5) — export, import into an empty
-  database, export again, compare. One test covering the widest surface in the
-  codebase, and it guards the exact path private models are restored from.
+- **Round-trip test on export and import** (T1.5) — export, import into an
+  empty database, export again, compare. One test covering the widest surface
+  in the codebase, and it guards the exact path private models are restored
+  from. Include a version-0 bundle (no `formatVersion`) so the migration chain
+  in `data-bundle.format.ts` is exercised, a newer version being refused, and
+  an export by a member of one enterprise while another exists (D-24). The
+  2026-10-13 hand-run of exactly these checks is the script to start from.
 
 - **Drift checks** (T1.6) — fail CI when the committed `schema.gql` differs from
   the generated one, or when `drizzle-kit generate` would produce a migration.
@@ -92,6 +96,20 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   they are the ones that do not honour the time dimension the rest of the app is
   built around — which makes a current-looking answer quietly wrong. At minimum:
   separate live from closed; better, respect the landscape's `asOf`.
+
+- **External identifier and source on rows** — nothing records where a row
+  came from. Every importer short of the snapshot (CSV, `package.json`, a CMDB)
+  must therefore match on names, and a second run cannot tell "renamed" from
+  "new". Nullable `externalId` plus `source` on the entity tables (building
+  blocks, capabilities, actors, organization units, information objects, value
+  streams, processes), unique per enterprise and source, in GraphQL, the
+  bundle and the forms. Decided in D-24; built with the first importer below.
+
+- **Tabular import per entity type, with review** (UC-2) — a CSV or Excel
+  sheet of building blocks (then capabilities, actors, …) into one existing
+  enterprise: upsert by external id or name, a diff the user accepts or
+  rejects before anything is written, never a replace. This is the integration
+  path; the bundle is not (D-24). Needs the external id above.
 
 ## Project hygiene
 

@@ -10,10 +10,11 @@
 // are not part of a bundle — they describe an instance, not a model — so they
 // are preserved across the delete-and-reinsert.
 import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
-import { type Database, inArray, schema, type Transaction } from '@openeam/db';
+import { and, type Column, type Database, inArray, schema, type Transaction } from '@openeam/db';
 import { assertCan } from '../auth/policy';
 import { grantMembership, type Principal } from '../auth/principal';
 import { DATABASE } from '../db.module';
+import { CURRENT_FORMAT_VERSION, generator } from './data-bundle.format';
 import type { DataBundle } from './data-bundle.schema';
 import { type BundleIssue, validateBundle } from './data-bundle.validator';
 
@@ -42,12 +43,42 @@ export class DataExchangeService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
   // Without enterpriseId: every enterprise the caller is a member of. With
-  // it: just that enterprise's model.
+  // it: just that enterprise's model. Every query is scoped in the database:
+  // rows of enterprise-owned tables by enterprise id, child and link rows by
+  // a subquery on their parents, so an export reads only what it returns.
   async export(principal: Principal, enterpriseId?: string): Promise<DataBundle> {
     if (enterpriseId) assertCan(principal, 'data.export', enterpriseId);
-    const visible = new Set(enterpriseId ? [enterpriseId] : principal.enterpriseIds);
-    const enterpriseFilter = <T extends { enterpriseId: string }>(rows: T[]): T[] =>
-      rows.filter((r) => visible.has(r.enterpriseId));
+    const ids = enterpriseId ? [enterpriseId] : [...principal.enterpriseIds];
+
+    const owned = (enterpriseIdColumn: Column) => inArray(enterpriseIdColumn, ids);
+    const capabilityIds = this.db
+      .select({ id: schema.businessCapabilities.id })
+      .from(schema.businessCapabilities)
+      .where(owned(schema.businessCapabilities.enterpriseId));
+    const processIds = this.db
+      .select({ id: schema.businessProcesses.id })
+      .from(schema.businessProcesses)
+      .where(owned(schema.businessProcesses.enterpriseId));
+    const valueStreamIds = this.db
+      .select({ id: schema.valueStreams.id })
+      .from(schema.valueStreams)
+      .where(owned(schema.valueStreams.enterpriseId));
+    const buildingBlockIds = this.db
+      .select({ id: schema.buildingBlocks.id })
+      .from(schema.buildingBlocks)
+      .where(owned(schema.buildingBlocks.enterpriseId));
+    const informationObjectIds = this.db
+      .select({ id: schema.informationObjects.id })
+      .from(schema.informationObjects)
+      .where(owned(schema.informationObjects.enterpriseId));
+    const actorIds = this.db
+      .select({ id: schema.actors.id })
+      .from(schema.actors)
+      .where(owned(schema.actors.enterpriseId));
+    const stageIds = this.db
+      .select({ id: schema.valueStreamStages.id })
+      .from(schema.valueStreamStages)
+      .where(inArray(schema.valueStreamStages.valueStreamId, valueStreamIds));
 
     const [
       enterprises,
@@ -70,43 +101,101 @@ export class DataExchangeService {
       actors,
       capabilityActors,
     ] = await Promise.all([
-      this.db.select().from(schema.enterprises),
-      this.db.select().from(schema.businessCapabilities),
-      this.db.select().from(schema.businessProcesses),
-      this.db.select().from(schema.processSteps),
-      this.db.select().from(schema.valueStreams),
-      this.db.select().from(schema.valueStreamStages),
-      this.db.select().from(schema.stageCapabilities),
-      this.db.select().from(schema.architectureDomains),
-      this.db.select().from(schema.organizationUnits),
-      this.db.select().from(schema.buildingBlocks),
-      this.db.select().from(schema.buildingBlockArchitectureDomains),
-      this.db.select().from(schema.buildingBlockOrganizationUnits),
-      this.db.select().from(schema.buildingBlockRealizations),
-      this.db.select().from(schema.buildingBlockCapabilities),
-      this.db.select().from(schema.buildingBlockRelationships),
-      this.db.select().from(schema.informationObjects),
-      this.db.select().from(schema.capabilityInformation),
-      this.db.select().from(schema.actors),
-      this.db.select().from(schema.capabilityActors),
+      this.db.select().from(schema.enterprises).where(inArray(schema.enterprises.id, ids)),
+      this.db
+        .select()
+        .from(schema.businessCapabilities)
+        .where(owned(schema.businessCapabilities.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.businessProcesses)
+        .where(owned(schema.businessProcesses.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.processSteps)
+        .where(inArray(schema.processSteps.processId, processIds)),
+      this.db.select().from(schema.valueStreams).where(owned(schema.valueStreams.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.valueStreamStages)
+        .where(inArray(schema.valueStreamStages.valueStreamId, valueStreamIds)),
+      this.db
+        .select()
+        .from(schema.stageCapabilities)
+        .where(
+          and(
+            inArray(schema.stageCapabilities.stageId, stageIds),
+            inArray(schema.stageCapabilities.capabilityId, capabilityIds),
+          ),
+        ),
+      this.db
+        .select()
+        .from(schema.architectureDomains)
+        .where(owned(schema.architectureDomains.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.organizationUnits)
+        .where(owned(schema.organizationUnits.enterpriseId)),
+      this.db.select().from(schema.buildingBlocks).where(owned(schema.buildingBlocks.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.buildingBlockArchitectureDomains)
+        .where(inArray(schema.buildingBlockArchitectureDomains.buildingBlockId, buildingBlockIds)),
+      this.db
+        .select()
+        .from(schema.buildingBlockOrganizationUnits)
+        .where(inArray(schema.buildingBlockOrganizationUnits.buildingBlockId, buildingBlockIds)),
+      this.db
+        .select()
+        .from(schema.buildingBlockRealizations)
+        .where(
+          and(
+            inArray(schema.buildingBlockRealizations.architectureBuildingBlockId, buildingBlockIds),
+            inArray(schema.buildingBlockRealizations.solutionBuildingBlockId, buildingBlockIds),
+          ),
+        ),
+      this.db
+        .select()
+        .from(schema.buildingBlockCapabilities)
+        .where(
+          and(
+            inArray(schema.buildingBlockCapabilities.buildingBlockId, buildingBlockIds),
+            inArray(schema.buildingBlockCapabilities.capabilityId, capabilityIds),
+          ),
+        ),
+      this.db
+        .select()
+        .from(schema.buildingBlockRelationships)
+        .where(
+          and(
+            inArray(schema.buildingBlockRelationships.sourceBuildingBlockId, buildingBlockIds),
+            inArray(schema.buildingBlockRelationships.targetBuildingBlockId, buildingBlockIds),
+          ),
+        ),
+      this.db
+        .select()
+        .from(schema.informationObjects)
+        .where(owned(schema.informationObjects.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.capabilityInformation)
+        .where(
+          and(
+            inArray(schema.capabilityInformation.informationObjectId, informationObjectIds),
+            inArray(schema.capabilityInformation.capabilityId, capabilityIds),
+          ),
+        ),
+      this.db.select().from(schema.actors).where(owned(schema.actors.enterpriseId)),
+      this.db
+        .select()
+        .from(schema.capabilityActors)
+        .where(
+          and(
+            inArray(schema.capabilityActors.actorId, actorIds),
+            inArray(schema.capabilityActors.capabilityId, capabilityIds),
+          ),
+        ),
     ]);
-
-    // Child/link rows have no enterpriseId of their own; they follow their
-    // parents' membership.
-    const scopedCapabilities = enterpriseFilter(businessCapabilities);
-    const scopedProcesses = enterpriseFilter(businessProcesses);
-    const scopedValueStreams = enterpriseFilter(valueStreams);
-    const scopedBuildingBlocks = enterpriseFilter(buildingBlocks);
-    const capabilityIds = new Set(scopedCapabilities.map((c) => c.id));
-    const processIds = new Set(scopedProcesses.map((p) => p.id));
-    const valueStreamIds = new Set(scopedValueStreams.map((v) => v.id));
-    const scopedStages = valueStreamStages.filter((s) => valueStreamIds.has(s.valueStreamId));
-    const stageIds = new Set(scopedStages.map((s) => s.id));
-    const buildingBlockIds = new Set(scopedBuildingBlocks.map((b) => b.id));
-    const scopedInformationObjects = enterpriseFilter(informationObjects);
-    const informationObjectIds = new Set(scopedInformationObjects.map((i) => i.id));
-    const scopedActors = enterpriseFilter(actors);
-    const actorIds = new Set(scopedActors.map((a) => a.id));
 
     // Row order is not meaningful; a stable one keeps a re-export of the same
     // model byte-identical, so a diff between two bundles shows real changes.
@@ -115,75 +204,33 @@ export class DataExchangeService {
     const byKey = <T>(rows: T[], key: (r: T) => string): T[] =>
       [...rows].sort((a, b) => key(a).localeCompare(key(b)));
 
-    return sortBundle({
-      enterprises: enterprises.filter((e) => visible.has(e.id)),
-      businessCapabilities: scopedCapabilities,
-      businessProcesses: scopedProcesses,
-      processSteps: processSteps.filter((s) => processIds.has(s.processId)),
-      valueStreams: scopedValueStreams,
-      valueStreamStages: scopedStages,
-      stageCapabilities: stageCapabilities.filter(
-        (sc) => stageIds.has(sc.stageId) && capabilityIds.has(sc.capabilityId),
+    return {
+      formatVersion: CURRENT_FORMAT_VERSION,
+      exportedAt: new Date().toISOString(),
+      generator: generator(),
+      enterprises: byId(enterprises),
+      businessCapabilities: byId(businessCapabilities),
+      businessProcesses: byId(businessProcesses),
+      processSteps: byId(processSteps),
+      valueStreams: byId(valueStreams),
+      valueStreamStages: byId(valueStreamStages),
+      stageCapabilities: byKey(stageCapabilities, (r) => `${r.stageId}/${r.capabilityId}`),
+      architectureDomains: byId(architectureDomains),
+      organizationUnits: byId(organizationUnits),
+      buildingBlocks: byId(buildingBlocks),
+      buildingBlockArchitectureDomains: byKey(
+        buildingBlockArchitectureDomains,
+        (r) => `${r.buildingBlockId}/${r.architectureDomainId}`,
       ),
-      architectureDomains: enterpriseFilter(architectureDomains),
-      organizationUnits: enterpriseFilter(organizationUnits),
-      buildingBlocks: scopedBuildingBlocks,
-      buildingBlockArchitectureDomains: buildingBlockArchitectureDomains.filter((l) =>
-        buildingBlockIds.has(l.buildingBlockId),
-      ),
-      buildingBlockOrganizationUnits: buildingBlockOrganizationUnits.filter((l) =>
-        buildingBlockIds.has(l.buildingBlockId),
-      ),
-      buildingBlockRealizations: buildingBlockRealizations.filter(
-        (l) =>
-          buildingBlockIds.has(l.architectureBuildingBlockId) &&
-          buildingBlockIds.has(l.solutionBuildingBlockId),
-      ),
-      buildingBlockCapabilities: buildingBlockCapabilities.filter(
-        (l) => buildingBlockIds.has(l.buildingBlockId) && capabilityIds.has(l.capabilityId),
-      ),
-      buildingBlockRelationships: buildingBlockRelationships.filter(
-        (l) =>
-          buildingBlockIds.has(l.sourceBuildingBlockId) &&
-          buildingBlockIds.has(l.targetBuildingBlockId),
-      ),
-      informationObjects: scopedInformationObjects,
-      capabilityInformation: capabilityInformation.filter(
-        (l) => informationObjectIds.has(l.informationObjectId) && capabilityIds.has(l.capabilityId),
-      ),
-      actors: scopedActors,
-      capabilityActors: capabilityActors.filter(
-        (l) => actorIds.has(l.actorId) && capabilityIds.has(l.capabilityId),
-      ),
-    });
-
-    function sortBundle(bundle: DataBundle): DataBundle {
-      return {
-        ...bundle,
-        enterprises: byId(bundle.enterprises),
-        businessCapabilities: byId(bundle.businessCapabilities),
-        businessProcesses: byId(bundle.businessProcesses),
-        processSteps: byId(bundle.processSteps),
-        valueStreams: byId(bundle.valueStreams),
-        valueStreamStages: byId(bundle.valueStreamStages),
-        stageCapabilities: byKey(bundle.stageCapabilities, (r) => `${r.stageId}/${r.capabilityId}`),
-        architectureDomains: byId(bundle.architectureDomains),
-        organizationUnits: byId(bundle.organizationUnits),
-        buildingBlocks: byId(bundle.buildingBlocks),
-        buildingBlockArchitectureDomains: byKey(
-          bundle.buildingBlockArchitectureDomains,
-          (r) => `${r.buildingBlockId}/${r.architectureDomainId}`,
-        ),
-        buildingBlockOrganizationUnits: byId(bundle.buildingBlockOrganizationUnits),
-        buildingBlockRealizations: byId(bundle.buildingBlockRealizations),
-        buildingBlockCapabilities: byId(bundle.buildingBlockCapabilities),
-        buildingBlockRelationships: byId(bundle.buildingBlockRelationships),
-        informationObjects: byId(bundle.informationObjects),
-        capabilityInformation: byId(bundle.capabilityInformation),
-        actors: byId(bundle.actors),
-        capabilityActors: byId(bundle.capabilityActors),
-      };
-    }
+      buildingBlockOrganizationUnits: byId(buildingBlockOrganizationUnits),
+      buildingBlockRealizations: byId(buildingBlockRealizations),
+      buildingBlockCapabilities: byId(buildingBlockCapabilities),
+      buildingBlockRelationships: byId(buildingBlockRelationships),
+      informationObjects: byId(informationObjects),
+      capabilityInformation: byId(capabilityInformation),
+      actors: byId(actors),
+      capabilityActors: byId(capabilityActors),
+    };
   }
 
   async import(principal: Principal, bundle: DataBundle): Promise<void> {

@@ -7,30 +7,86 @@ import { useConfirm } from '@/lib/confirm';
 import { useEnterprise } from '@/lib/enterprise';
 import { toast } from '@/lib/toast';
 
-type Status =
-  | { kind: 'idle' }
-  | { kind: 'success'; message: string }
-  | { kind: 'error'; message: string };
+// Both validation layers answer with `issues`: the schema with zod issues
+// (path + message), the model rules with table + id + message. Flatten to one
+// line each so a rejected import says what is wrong, not only that it is.
+class ImportError extends Error {
+  issues: string[];
+  constructor(message: string, issues: string[]) {
+    super(message);
+    this.issues = issues;
+  }
+}
 
-async function downloadExport(enterpriseId: string, enterpriseName: string) {
+type RawIssue = { path?: unknown[]; table?: string; id?: string; message?: string };
+
+function describeIssue(issue: RawIssue): string {
+  const where = issue.table
+    ? `${issue.table}${issue.id ? ` ${issue.id}` : ''}`
+    : Array.isArray(issue.path)
+      ? issue.path.join('.')
+      : '';
+  return where ? `${where}: ${issue.message ?? 'invalid'}` : (issue.message ?? 'invalid');
+}
+
+// The File System Access API (Chromium) shows a save dialog and tells us
+// whether the person went through with it. Not in TypeScript's DOM lib yet.
+type SaveFilePicker = (options: {
+  suggestedName: string;
+  types: { description: string; accept: Record<string, string[]> }[];
+}) => Promise<{ createWritable(): Promise<WritableStream> }>;
+
+// Resolves to true when the file was saved, false when the person cancelled.
+// Browsers without the picker get a plain download, which cannot be cancelled
+// from script and gives its own feedback, so that path reports nothing.
+async function saveBundle(blob: Blob, fileName: string): Promise<boolean | null> {
+  const picker = (window as { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker;
+  if (picker) {
+    try {
+      const handle = await picker({
+        suggestedName: fileName,
+        types: [{ description: 'OpenEAM bundle', accept: { 'application/json': ['.json'] } }],
+      });
+      const writable = await handle.createWritable();
+      await blob.stream().pipeTo(writable);
+      return true;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return false;
+      throw err;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
+  return null;
+}
+
+async function exportBundle(enterpriseId: string, enterpriseName: string) {
   const res = await fetch(
     `${apiBase}/api/data-exchange/export?enterpriseId=${encodeURIComponent(enterpriseId)}`,
     { credentials: 'include' },
   );
   if (!res.ok) throw new Error(`Export failed (${res.status})`);
   const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
   const slug = enterpriseName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  a.href = url;
-  a.download = `openeam-${slug}-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const saved = await saveBundle(
+    blob,
+    `openeam-${slug}-${new Date().toISOString().slice(0, 10)}.json`,
+  );
+  if (saved) toast.success(`Exported "${enterpriseName}".`);
 }
 
 async function uploadImport(file: File) {
   const text = await file.text();
-  const body = JSON.parse(text);
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error('The file is not valid JSON.');
+  }
   const res = await fetch(`${apiBase}/api/data-exchange/import`, {
     method: 'POST',
     credentials: 'include',
@@ -39,7 +95,11 @@ async function uploadImport(file: File) {
   });
   if (!res.ok) {
     const payload = await res.json().catch(() => null);
-    throw new Error(payload?.message ?? `Import failed (${res.status})`);
+    const issues: RawIssue[] = Array.isArray(payload?.issues) ? payload.issues : [];
+    throw new ImportError(
+      payload?.message ?? `Import failed (${res.status})`,
+      issues.map(describeIssue),
+    );
   }
 }
 
@@ -48,19 +108,19 @@ function DataExchangeRoute() {
   const canExport = can('data.export');
   const canImport = can('data.import');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  // A rejected bundle's problems, listed under the import card: too many
+  // lines for a toast, and worth keeping on screen while fixing the file.
+  const [rejected, setRejected] = useState<{ message: string; issues: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const confirm = useConfirm();
 
   const handleExport = async () => {
     if (!enterprise) return;
     setBusy(true);
-    setStatus({ kind: 'idle' });
     try {
-      await downloadExport(enterprise.id, enterprise.name);
-      setStatus({ kind: 'success', message: `Exported "${enterprise.name}".` });
+      await exportBundle(enterprise.id, enterprise.name);
     } catch (err) {
-      setStatus({ kind: 'error', message: err instanceof Error ? err.message : 'Export failed.' });
+      toast.error(err instanceof Error ? err.message : 'Export failed.');
     } finally {
       setBusy(false);
     }
@@ -81,16 +141,16 @@ function DataExchangeRoute() {
     if (!confirmed) return;
 
     setBusy(true);
-    setStatus({ kind: 'idle' });
+    setRejected(null);
     try {
       await uploadImport(file);
-      toast.success('Import complete.');
-      setStatus({
-        kind: 'success',
-        message: 'Import complete. Reload the relevant pages to see the new data.',
-      });
+      toast.success('Import complete. Reload the pages you have open to see the new data.');
     } catch (err) {
-      setStatus({ kind: 'error', message: err instanceof Error ? err.message : 'Import failed.' });
+      const message = err instanceof Error ? err.message : 'Import failed.';
+      toast.error(message);
+      if (err instanceof ImportError && err.issues.length > 0) {
+        setRejected({ message, issues: err.issues });
+      }
     } finally {
       setBusy(false);
     }
@@ -98,11 +158,13 @@ function DataExchangeRoute() {
 
   return (
     <div className={contentWidthClassName}>
-      <PageHeader title="Data Exchange" />
+      <PageHeader title="Export & Import" />
       <p className="mb-6 text-sm text-muted-foreground">
-        Export the current enterprise's model as a single JSON bundle, or import a bundle to restore
-        or move enterprises between OpenEAM instances. Import replaces the bundle's enterprises and
-        leaves all others untouched.
+        A bundle is a snapshot of an enterprise's whole model as one JSON file: for backups, for
+        moving an enterprise to another OpenEAM instance, and for keeping a copy under version
+        control. Import replaces the bundle's enterprises and leaves all others untouched. Bundles
+        from older versions of OpenEAM are upgraded on import; it is not a way to merge changes or
+        to load data from other tools.
       </p>
 
       <div className="flex flex-col gap-4">
@@ -144,12 +206,18 @@ function DataExchangeRoute() {
           </Button>
         </div>
 
-        {status.kind !== 'idle' && (
-          <p
-            className={`text-sm ${status.kind === 'error' ? 'text-destructive' : 'text-emerald-600 dark:text-emerald-400'}`}
-          >
-            {status.message}
-          </p>
+        {rejected && (
+          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-5 text-sm">
+            <p className="font-semibold text-destructive">{rejected.message}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Nothing was written. Fix the bundle and import it again.
+            </p>
+            <ul className="mt-3 max-h-64 list-disc space-y-0.5 overflow-auto pl-5 font-mono text-xs text-foreground">
+              {rejected.issues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </div>

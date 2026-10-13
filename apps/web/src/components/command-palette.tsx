@@ -104,7 +104,7 @@ const PAGES: Entry[] = [
   { key: 'p-table', label: 'Landscape Table', group: 'Pages', icon: Table2, to: '/landscape' },
   {
     key: 'p-dx',
-    label: 'Data Exchange',
+    label: 'Export & Import',
     group: 'Pages',
     icon: ArrowLeftRight,
     to: '/data-exchange',

@@ -245,10 +245,12 @@ export function AppShell() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={isDataExchange} tooltip="Data Exchange">
+                    <SidebarMenuButton asChild isActive={isDataExchange} tooltip="Export & Import">
                       <Link to="/data-exchange">
                         <ArrowLeftRight strokeWidth={2} />
-                        <span className="group-data-[collapsible=icon]:hidden">Data Exchange</span>
+                        <span className="group-data-[collapsible=icon]:hidden">
+                          Export & Import
+                        </span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

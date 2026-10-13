@@ -14,7 +14,7 @@ A pnpm workspace, three packages, ~21,000 lines.
 | Package | What it is | Size |
 | --- | --- | --- |
 | `packages/db` | Drizzle schema, migrations, client, startup migrator. The metamodel lives here. | ~1,100 lines |
-| `apps/api` | NestJS + Apollo. Code-first GraphQL, three REST controllers (data exchange, icons, branding), sessions, admin. | ~6,300 lines |
+| `apps/api` | NestJS + Apollo. Code-first GraphQL, three REST controllers (export/import, icons, branding), sessions, admin. | ~6,300 lines |
 | `apps/web` | React 19 + Vite + TanStack Router SPA. | ~13,900 lines |
 
 For development, Postgres runs in Compose and both apps run from `pnpm dev`.
@@ -125,13 +125,20 @@ runtime into `apps/api/schema.gql` (~640 lines), which is committed so schema
 changes are visible in a diff. If you change a model, the SDL changes — commit it.
 
 `data-exchange` is the odd module out: a REST controller (`GET /api/data-exchange/export`,
-`POST /api/data-exchange/import`) validating against a zod schema in
-`data-bundle.schema.ts`. Export without a parameter returns the caller's
-enterprises, not the whole database. Import replaces exactly the enterprises
-carried in the bundle and touches nothing else; an enterprise that already
-exists may only be replaced by one of its members, and memberships survive the
-replace (they describe the instance, not the model, so they are not in the
-bundle).
+`POST /api/data-exchange/import`; "Export & Import" in the UI) for the data
+bundle, a snapshot of whole enterprises (D-24). A bundle carries a
+`formatVersion`; import brings an older bundle up to the current version
+through the migration chain in `data-bundle.format.ts`, refuses one written by
+a newer OpenEAM, and only then validates it against the zod schema in
+`data-bundle.schema.ts`, which therefore describes exactly one shape. Export
+stamps `exportedAt` and `generator` on the bundle. Export without a parameter
+returns the caller's enterprises, not the whole database, and every query is
+scoped in the database (child and link rows through subqueries on their
+parents), so an export reads only what it returns. Import replaces exactly the
+enterprises carried in the bundle and touches nothing else; an enterprise that
+already exists may only be replaced by one of its members, and memberships
+survive the replace (they describe the instance, not the model, so they are not
+in the bundle).
 
 `icons` is the other REST module, public like `/health`:
 `GET /api/icons/collections`, `/api/icons/search?q=…` for the picker, and

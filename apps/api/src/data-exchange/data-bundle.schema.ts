@@ -1,11 +1,22 @@
 import { z } from 'zod';
 import { ICON_ID_MESSAGE, isIconId } from '../icons/icon-id';
+import { CURRENT_FORMAT_VERSION } from './data-bundle.format';
+
+// The shape of a bundle in the current format version. A bundle is migrated
+// to this version before it is validated (data-bundle.format.ts, D-24), so
+// this schema never has to know about older shapes.
+//
+// Omitted means null, default, or empty: a field marked optional here may be
+// left out by a hand-written bundle, or by one exported before the field
+// existed, and reads as the value the database would fill in. That is the
+// format's rule, not a per-field accident, so adding an optional field is not
+// a new format version.
 
 // Every id is a UUID (D-8, D-18): the columns are `uuid`, so the schema says
 // so too and a malformed id is a 400 with a path, not a database error.
 
-// Record timestamps: exported for round-trip fidelity, optional so bundles
-// created before they existed still import (the DB fills defaults).
+// Record timestamps: exported for round-trip fidelity; omitted, the database
+// fills them in.
 const timestampFields = {
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -44,7 +55,6 @@ const businessProcessSchema = z.object({
   capabilityId: z.uuid(),
   triggerEvent: z.string().nullable(),
   outcome: z.string().nullable(),
-  // Optional so bundles exported before the diagram column existed still import.
   bpmnXml: z.string().nullable().optional(),
   ...timestampFields,
 });
@@ -139,8 +149,7 @@ const buildingBlockSchema = z.object({
   kind: z.enum(['architecture', 'solution']),
   name: z.string(),
   description: z.string().nullable(),
-  // Optional so bundles exported before icons existed still import. The
-  // collection must be one this instance serves; the name is not checked
+  // The collection must be one this instance serves; the name is not checked
   // against the set (see icon-id.ts).
   icon: z.string().refine(isIconId, ICON_ID_MESSAGE).nullable().optional().default(null),
   architectureLevel: z.enum(['strategic', 'segment', 'capability']).nullable(),
@@ -189,17 +198,22 @@ const buildingBlockRelationshipSchema = z.object({
 });
 
 export const dataBundleSchema = z.object({
+  // Which format this bundle is written in. Import migrates older bundles
+  // to the current version first; one written by a newer OpenEAM is refused.
+  formatVersion: z.literal(CURRENT_FORMAT_VERSION),
+  // Provenance, written by export and ignored by import: when, and by which
+  // software. Hand-written bundles leave them out.
+  exportedAt: z.string().optional(),
+  generator: z.object({ name: z.string(), version: z.string() }).optional(),
   // The enterprises this bundle carries; import replaces exactly these
   // enterprises' models and touches nothing else.
   enterprises: z.array(enterpriseSchema),
-  businessCapabilities: z.array(businessCapabilitySchema),
-  businessProcesses: z.array(businessProcessSchema),
-  processSteps: z.array(processStepSchema),
-  valueStreams: z.array(valueStreamSchema),
-  valueStreamStages: z.array(valueStreamStageSchema),
-  stageCapabilities: z.array(stageCapabilitySchema),
-  // Optional (with defaults) so bundles exported before the landscape tables
-  // existed still import.
+  businessCapabilities: z.array(businessCapabilitySchema).default([]),
+  businessProcesses: z.array(businessProcessSchema).default([]),
+  processSteps: z.array(processStepSchema).default([]),
+  valueStreams: z.array(valueStreamSchema).default([]),
+  valueStreamStages: z.array(valueStreamStageSchema).default([]),
+  stageCapabilities: z.array(stageCapabilitySchema).default([]),
   architectureDomains: z.array(architectureDomainSchema).default([]),
   organizationUnits: z.array(organizationUnitSchema).default([]),
   buildingBlocks: z.array(buildingBlockSchema).default([]),
@@ -208,8 +222,6 @@ export const dataBundleSchema = z.object({
   buildingBlockRealizations: z.array(buildingBlockRealizationSchema).default([]),
   buildingBlockCapabilities: z.array(buildingBlockCapabilitySchema).default([]),
   buildingBlockRelationships: z.array(buildingBlockRelationshipSchema).default([]),
-  // Optional with defaults for the same reason as the landscape tables above:
-  // bundles exported before information objects existed still import.
   informationObjects: z.array(informationObjectSchema).default([]),
   capabilityInformation: z.array(capabilityInformationSchema).default([]),
   actors: z.array(actorSchema).default([]),

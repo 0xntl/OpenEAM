@@ -555,3 +555,59 @@ in the backup.
 
 **Revisit if:** one instance serves several clients who each want their own
 brand: then per-enterprise branding, probably with a domain per enterprise.
+
+---
+
+## D-24 · The data bundle is a versioned snapshot, named for what it does; integration takes other paths
+
+**Decided:** the data bundle stays what D-16 made it — a byte-faithful,
+replace-only snapshot of whole enterprises — and is presented as that. Four
+things follow.
+
+- The page, sidebar entry and command-palette entry say **Export & Import**.
+  The module, the `/api/data-exchange/*` endpoints and the `/data-exchange`
+  route keep their names; a URL is an address, not a label.
+- Every bundle carries a **`formatVersion`**. Import migrates an older bundle
+  step by step to the current version (`data-bundle.format.ts`) and validates
+  only the result, so the zod schema describes exactly one shape. A bundle
+  from a newer OpenEAM is refused with a message naming both versions. A
+  bundle without the field is version 0; everything the format gained before
+  the field existed was additive, so the 0 → 1 step only stamps the version.
+  Exports also carry `exportedAt` and `generator` (name and version), which
+  import ignores.
+- **When the version changes:** adding an optional field or array does not —
+  an omitted field means null, its default, or empty, and that is the
+  format's rule rather than a per-field accident. A rename, a split, a
+  changed meaning, or a field that becomes required does, with a migration
+  step that rewrites the old shape.
+- **Integration is not the bundle's job.** The vision's spectrum ("meet the
+  architecture where it is", UC-2) is three mechanisms with different
+  semantics: the snapshot (this), a tabular import per entity type into one
+  existing enterprise with upsert and a review step, and adapters that
+  propose changes through the API. The second and third need a stable
+  external key on rows (`externalId` plus its `source`), which is in the
+  backlog and gets built with the first importer, not before. The ArchiMate
+  Model Exchange File Format waits for someone who needs it; the metamodel
+  here is TOGAF-shaped and the mapping would be lossy.
+
+**Why the name:** "Data Exchange" is, nearly word for word, the industry's
+name for tool interoperability (ArchiMate's exchange format), and promised what
+the bundle does not do. Self-hosted tools that ship the same thing — GitLab's
+project export, Grafana's dashboard JSON, Keycloak's realm export — call it
+export and import.
+
+**Why a version:** every one of those formats carries one, and without it
+compatibility with older bundles can only be expressed as optional fields in
+the schema, which accumulate and can never be removed. With it the schema is
+strict about the current shape and the history lives in one place as explicit
+steps. Refusing a newer bundle beats silently dropping the fields it carries.
+
+**Why not merge:** a snapshot that merged would make the restore path lie — a
+bundle restored over a changed enterprise would be neither. D-16 already says
+merge is a diff, not a snapshot; that diff is the tabular importer.
+
+**Revisit when:** the first structural change to the format lands (the
+migration chain gets its first real step; the example bundles are regenerated
+to the new version), or the first importer is built (external ids become a
+column).
+
