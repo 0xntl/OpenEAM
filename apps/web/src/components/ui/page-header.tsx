@@ -42,7 +42,7 @@ export function PageHeader({ title, action, back, className }: PageHeaderProps) 
     <div className={cn('sticky top-0 z-10 mb-10 bg-background pt-4', className)}>
       {back}
       <div className="flex items-center justify-between gap-3">
-        <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-foreground">
+        <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight text-foreground">
           {title}
         </h1>
         {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
@@ -55,23 +55,63 @@ export function PageHeader({ title, action, back, className }: PageHeaderProps) 
   );
 }
 
+// One read-only fact about the entity a detail page shows, as a chip:
+// "Lifecycle · Active". A row of these sits under the description, before
+// the cards, on every detail page that has facts to state.
+export function Fact({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: ReactNode;
+  // 'warning' for a fact that is a problem (no owner, nothing accountable).
+  tone?: 'neutral' | 'warning';
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs',
+        tone === 'warning'
+          ? 'border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300'
+          : 'border-border',
+      )}
+    >
+      <span className={tone === 'warning' ? 'opacity-80' : 'text-muted-foreground'}>{label}</span>
+      <span className="font-medium">{value}</span>
+    </span>
+  );
+}
+
+// Shared class names for the three blocks between the header and the cards,
+// so every detail page spaces them identically.
+export const detailDescriptionClassName = 'mb-4 text-sm text-muted-foreground';
+export const detailFactsClassName = 'mb-6 flex flex-wrap gap-2';
+export const detailCardGridClassName = 'grid grid-cols-2 gap-4';
+
 // The "titled card with a list of items" shape shared by capability and
 // business-process detail pages (was duplicated as local Quadrant/Section
 // components).
 export function TitledCard({
   title,
   subtitle,
+  action,
   children,
 }: {
   title: string;
   subtitle: string;
+  // An optional control in the card's top-right corner (e.g. "Add …").
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
-      <div>
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        {action}
       </div>
       <div className="flex flex-col gap-1.5">{children}</div>
     </div>

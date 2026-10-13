@@ -8,6 +8,7 @@ import {
   PageHeader,
   pageBackLinkClassName,
 } from '@/components/ui/page-header';
+import { DetailSkeleton } from '@/components/ui/skeletons';
 
 // bpmn-js is heavy; only load it when the editor route is visited.
 const BpmnModeler = lazy(() => import('@/components/bpmn/bpmn-modeler'));
@@ -55,7 +56,12 @@ function ModelBusinessProcessRoute() {
     [updateDiagram, processId],
   );
 
-  if (loading) return <p className="px-6 py-8 text-sm text-muted-foreground">Loading…</p>;
+  if (loading)
+    return (
+      <div className={canvasWidthClassName}>
+        <DetailSkeleton />
+      </div>
+    );
   if (error) return <p className="px-6 py-8 text-sm text-destructive">Failed to load process.</p>;
   if (!data?.businessProcess) throw notFound();
 

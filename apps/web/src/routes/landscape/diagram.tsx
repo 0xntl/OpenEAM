@@ -2,6 +2,7 @@ import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { lazy, Suspense, useMemo, useState } from 'react';
+import { BrandLoader } from '@/components/brand/brand';
 import type {
   DiagramEdge,
   DiagramEdgeKind,
@@ -44,6 +45,7 @@ const LANDSCAPE_DIAGRAM_QUERY = gql`
     ) {
       id
       name
+      icon
       architectureDomainIds
       outgoingRelationships {
         id
@@ -65,6 +67,7 @@ const LANDSCAPE_DIAGRAM_QUERY = gql`
 interface LandscapeDiagramBlock {
   id: string;
   name: string;
+  icon?: string | null;
   architectureDomainIds: string[];
   outgoingRelationships: Array<
     Pick<BuildingBlockRelationship, 'id' | 'targetBuildingBlockId' | 'type'>
@@ -95,6 +98,7 @@ function toDiagramGraph(data: LandscapeDiagramData | undefined): {
     id: b.id,
     label: b.name,
     kind: 'solution' as const,
+    icon: b.icon ?? undefined,
     domainName: b.architectureDomainIds[0]
       ? domainNameById.get(b.architectureDomainIds[0])
       : undefined,
@@ -143,30 +147,33 @@ function LandscapeDiagramRoute() {
     // so it gets every pixel of the content area, flush on all four sides.
     <div className={fullBleedCanvasClassName}>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
-        {/* Floating over the canvas rather than occupying its own row, so
-            filtering doesn't cost the diagram any vertical space. Plain
-            themed tokens (bg-card/border-border) — the diagram surface
-            underneath follows the theme too now, so there's no light/dark
-            mismatch to work around here. */}
-        <div className="absolute left-4 top-4 z-10 flex items-center gap-4 rounded-xl border border-border bg-card/95 px-4 py-2 text-foreground shadow-sm backdrop-blur">
-          <LandscapeFilters
-            value={filters}
-            onChange={setFilters}
-            architectureDomains={data?.architectureDomains ?? []}
-            organizationUnits={data?.organizationUnits ?? []}
-            hideArchitectureLevel
-          />
+        {/* Floating glass toolbar. The canvas below reserves its height
+            (pt-16), so the diagram is fitted into the space under the bar
+            rather than behind it. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center px-4 pt-3">
+          <div className="pointer-events-auto flex max-w-full flex-wrap items-center gap-4 rounded-xl border border-border/70 bg-background/80 px-4 py-2 text-foreground shadow-lg shadow-black/5 backdrop-blur-md dark:shadow-black/30">
+            <h1 className="mr-1 text-sm font-semibold">Landscape</h1>
+            <LandscapeFilters
+              value={filters}
+              onChange={setFilters}
+              architectureDomains={data?.architectureDomains ?? []}
+              organizationUnits={data?.organizationUnits ?? []}
+              hideArchitectureLevel
+            />
+          </div>
         </div>
         {error && (
           <p className="px-4 py-2 text-xs text-destructive">Failed to load the landscape.</p>
         )}
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 pt-16">
           {loading && !data ? (
             <p className="p-4 text-xs text-muted-foreground italic">Loading…</p>
           ) : (
             <Suspense
               fallback={
-                <p className="p-4 text-xs text-muted-foreground italic">Loading diagram…</p>
+                <div className="flex h-full w-full items-center justify-center">
+                  <BrandLoader label="Loading the diagram" />
+                </div>
               }
             >
               <LandscapeDiagram

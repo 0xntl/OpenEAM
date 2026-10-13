@@ -2,16 +2,18 @@
 
 ## Setup
 
-Needs Node 24, pnpm 11, Docker.
+Needs Node 24, pnpm 12, Docker.
 
 ```bash
 pnpm install
 cp .env.example .env
-docker compose up postgres -d
+docker compose up -d      # Postgres only; `--profile app` would also start the containers
+pnpm db:migrate
 pnpm dev
 ```
 
-Web on http://localhost:3000, API on http://localhost:4000.
+Web on http://localhost:3000, API on http://localhost:4000. The first account
+you create in the web app can always be created; see README.
 
 ## Before opening a PR
 
@@ -19,6 +21,7 @@ Run the same checks CI runs:
 
 ```bash
 pnpm lint
+pnpm check:examples   # icon ids in examples/*.json resolve
 pnpm -r typecheck
 pnpm -r build
 ```
@@ -27,7 +30,7 @@ Branch off `main`. Keep PRs focused.
 
 ## Before changing code
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the three packages, says where the business rules live, and lists the invariants (INV-1 … INV-10) the model depends on. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the EAM vocabulary as this codebase uses it — the terms are TOGAF's and used deliberately, so a loose one is a defect rather than a style choice.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the three packages, says where the business rules live, and lists the invariants (INV-1 … INV-17) the model depends on, and [docs/DATABASE.md](docs/DATABASE.md) is the schema table by table, including which invariants Postgres enforces itself. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the EAM vocabulary as this codebase uses it — the terms are TOGAF's and used deliberately, so a loose one is a defect rather than a style choice.
 
 ## Bigger decisions
 

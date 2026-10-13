@@ -9,12 +9,16 @@ import {
   PageHeader,
   pageBackLinkClassName,
 } from '@/components/ui/page-header';
+import { DetailSkeleton } from '@/components/ui/skeletons';
 import { ValueStreamDiagram } from '@/components/value-stream/diagram';
 import {
   DELETE_VALUE_STREAM,
   ValueStreamFormSheet,
 } from '@/components/value-stream/value-stream-form-sheet';
+import { useConfirm } from '@/lib/confirm';
+import { WriteOnly } from '@/lib/enterprise';
 import type { ValueStream, ValueStreamCapability } from '@/lib/entities';
+import { toast } from '@/lib/toast';
 
 const VALUE_STREAM_QUERY = gql`
   query ValueStreamDetail($id: String!) {
@@ -55,6 +59,7 @@ interface StreamCapabilitiesData {
 function ValueStreamDetailRoute() {
   const { valueStreamId } = Route.useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { data, loading, error, refetch } = useQuery<ValueStreamDetailData>(VALUE_STREAM_QUERY, {
     variables: { id: valueStreamId },
   });
@@ -63,16 +68,34 @@ function ValueStreamDetailRoute() {
     variables: { enterpriseId },
     skip: !enterpriseId,
   });
-  const [deleteValueStream] = useMutation(DELETE_VALUE_STREAM);
+  const [deleteValueStream] = useMutation(DELETE_VALUE_STREAM, {
+    update(cache, _result, { variables }) {
+      if (!variables?.id) return;
+      cache.evict({ id: cache.identify({ __typename: 'ValueStream', id: variables.id }) });
+      cache.gc();
+    },
+  });
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this value stream?')) return;
+    if (
+      !(await confirm({
+        title: `Delete "${data?.valueStream?.name ?? 'this value stream'}"?`,
+        destructive: true,
+      }))
+    )
+      return;
     await deleteValueStream({ variables: { id: valueStreamId } });
+    toast.success('Deleted.');
     navigate({ to: '/value-streams' });
   };
 
-  if (loading) return <p className="px-6 py-8 text-sm text-muted-foreground">Loading…</p>;
+  if (loading)
+    return (
+      <div className={contentWidthClassName}>
+        <DetailSkeleton />
+      </div>
+    );
   if (error)
     return <p className="px-6 py-8 text-sm text-destructive">Failed to load value stream.</p>;
   if (!data?.valueStream) throw notFound();
@@ -91,20 +114,25 @@ function ValueStreamDetailRoute() {
         }
         action={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setSheetOpen(true)}>
-              Edit
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
-              Delete
-            </Button>
+            <WriteOnly>
+              <Button variant="ghost" size="sm" onClick={() => setSheetOpen(true)}>
+                Edit
+              </Button>
+            </WriteOnly>
+            <WriteOnly>
+              <Button variant="destructive" size="sm" onClick={handleDelete}>
+                Delete
+              </Button>
+            </WriteOnly>
           </>
         }
       />
 
-      {/* Diagram */}
-      <div className="rounded-2xl border border-border bg-muted/30 p-6 shadow-xs">
-        <ValueStreamDiagram stream={stream} capabilities={capsData?.businessCapabilities ?? []} />
-      </div>
+      {stream.description && (
+        <p className="mb-4 text-sm text-muted-foreground">{stream.description}</p>
+      )}
+
+      <ValueStreamDiagram stream={stream} capabilities={capsData?.businessCapabilities ?? []} />
 
       <ValueStreamFormSheet
         open={sheetOpen}

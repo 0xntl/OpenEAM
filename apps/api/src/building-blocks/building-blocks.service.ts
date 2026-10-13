@@ -1,7 +1,16 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Database, Transaction } from '@openeam/db';
-import { eq, schema } from '@openeam/db';
+import { and, eq, inArray, schema } from '@openeam/db';
+import { assertCan } from '../auth/policy';
+import { assertEnterpriseAccess, type Principal } from '../auth/principal';
+import {
+  ARCHITECTURE_LEVEL_MESSAGE,
+  architectureLevelAllowed,
+  INTERVAL_MESSAGE,
+  isHalfOpenInterval,
+} from '../common/invariants';
 import { DATABASE } from '../db.module';
+import { ICON_ID_MESSAGE, isIconId } from '../icons/icon-id';
 import type {
   ArchitectureBuildingBlock,
   ArchitectureLevel,
@@ -34,6 +43,7 @@ interface BuildingBlockRow extends TemporalRow {
   kind: 'architecture' | 'solution';
   name: string;
   description: string | null;
+  icon: string | null;
   architectureLevel: 'strategic' | 'segment' | 'capability' | null;
   lifecyclePhase: 'planned' | 'active' | 'phasing_out' | 'retired';
   architectureDomainLinks: Array<{ architectureDomainId: string }>;
@@ -89,6 +99,7 @@ export function toBuildingBlock(row: BuildingBlockRow, asOf?: string): MappedBui
     enterpriseId: row.enterpriseId,
     name: row.name,
     description: row.description,
+    icon: row.icon,
     architectureLevel: row.architectureLevel as ArchitectureLevel | null,
     lifecyclePhase: row.lifecyclePhase as LifecyclePhase,
     validFrom: row.validFrom,
@@ -121,7 +132,8 @@ export const withAllLinks = {
 export class BuildingBlocksService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async findAll(enterpriseId: string): Promise<MappedBuildingBlock[]> {
+  async findAll(principal: Principal, enterpriseId: string): Promise<MappedBuildingBlock[]> {
+    assertEnterpriseAccess(principal, enterpriseId);
     const rows = await this.db.query.buildingBlocks.findMany({
       where: (t, { eq }) => eq(t.enterpriseId, enterpriseId),
       with: withAllLinks,
@@ -130,16 +142,20 @@ export class BuildingBlocksService {
     return rows.map((row) => toBuildingBlock(row));
   }
 
-  async findOne(id: string): Promise<MappedBuildingBlock | undefined> {
+  // Scoped to the caller's enterprises (INV-16).
+  async findOne(principal: Principal, id: string): Promise<MappedBuildingBlock | undefined> {
     const row = await this.db.query.buildingBlocks.findFirst({
-      where: (t, { eq }) => eq(t.id, id),
+      where: (t, { and, eq, inArray }) =>
+        and(eq(t.id, id), inArray(t.enterpriseId, principal.enterpriseIds)),
       with: withAllLinks,
     });
     return row ? toBuildingBlock(row) : undefined;
   }
 
-  async create(input: BuildingBlockInput): Promise<MappedBuildingBlock> {
+  async create(principal: Principal, input: BuildingBlockInput): Promise<MappedBuildingBlock> {
+    assertCan(principal, 'model.write', input.enterpriseId);
     this.validateInput(input);
+    await this.validateReferences(input, input.enterpriseId);
 
     const id = await this.db.transaction(async (tx) => {
       const [inserted] = await tx
@@ -149,6 +165,7 @@ export class BuildingBlocksService {
           kind: input.kind,
           name: input.name,
           description: input.description ?? null,
+          icon: input.icon ?? null,
           architectureLevel:
             input.kind === 'architecture' ? (input.architectureLevel ?? null) : null,
           lifecyclePhase: input.lifecyclePhase,
@@ -162,53 +179,96 @@ export class BuildingBlocksService {
       return inserted.id;
     });
 
-    const created = await this.findOne(id);
+    const created = await this.findOne(principal, id);
     if (!created) throw new NotFoundException(`Building block ${id} not found after creation`);
     return created;
   }
 
-  async update(id: string, input: BuildingBlockInput): Promise<MappedBuildingBlock> {
+  // enterpriseId is not updatable; references are checked against the
+  // stored enterprise, not whatever the input claims.
+  async update(
+    principal: Principal,
+    id: string,
+    input: BuildingBlockInput,
+  ): Promise<MappedBuildingBlock> {
     this.validateInput(input);
+    const existing = await this.findOne(principal, id);
+    if (!existing) throw new NotFoundException(`Building block ${id} not found`);
+    assertCan(principal, 'model.write', existing.enterpriseId);
+    await this.validateReferences(input, existing.enterpriseId);
 
     await this.db.transaction(async (tx) => {
-      const [updated] = await tx
+      await tx
         .update(schema.buildingBlocks)
         .set({
           kind: input.kind,
           name: input.name,
           description: input.description ?? null,
+          icon: input.icon ?? null,
           architectureLevel:
             input.kind === 'architecture' ? (input.architectureLevel ?? null) : null,
           lifecyclePhase: input.lifecyclePhase,
           validFrom: input.validFrom ?? null,
           validTo: input.validTo ?? null,
         })
-        .where(eq(schema.buildingBlocks.id, id))
-        .returning({ id: schema.buildingBlocks.id });
-
-      if (!updated) throw new NotFoundException(`Building block ${id} not found`);
+        .where(eq(schema.buildingBlocks.id, id));
       await this.replaceAssignments(tx, id, input);
     });
 
-    const updated = await this.findOne(id);
+    const updated = await this.findOne(principal, id);
     if (!updated) throw new NotFoundException(`Building block ${id} not found after update`);
     return updated;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(principal: Principal, id: string): Promise<boolean> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) return false;
+    assertCan(principal, 'model.write', existing.enterpriseId);
     const [deleted] = await this.db
       .delete(schema.buildingBlocks)
-      .where(eq(schema.buildingBlocks.id, id))
+      .where(
+        and(
+          eq(schema.buildingBlocks.id, id),
+          inArray(schema.buildingBlocks.enterpriseId, principal.enterpriseIds),
+        ),
+      )
       .returning({ id: schema.buildingBlocks.id });
     return Boolean(deleted);
   }
 
   async createRelationship(
+    principal: Principal,
     input: BuildingBlockRelationshipInput,
   ): Promise<BuildingBlockRelationship> {
     if (input.sourceBuildingBlockId === input.targetBuildingBlockId) {
       throw new BadRequestException('A building block cannot relate to itself');
     }
+    if (!isHalfOpenInterval(input.validFrom, input.validTo)) {
+      throw new BadRequestException(INTERVAL_MESSAGE);
+    }
+
+    // Both ends must be visible to the caller and sit in the same
+    // enterprise (INV-9): a relationship never crosses the boundary.
+    const ends = await this.db.query.buildingBlocks.findMany({
+      where: (t, { and, inArray }) =>
+        and(
+          inArray(t.id, [input.sourceBuildingBlockId, input.targetBuildingBlockId]),
+          inArray(t.enterpriseId, principal.enterpriseIds),
+        ),
+      columns: { id: true, enterpriseId: true },
+    });
+    const source = ends.find((b) => b.id === input.sourceBuildingBlockId);
+    const target = ends.find((b) => b.id === input.targetBuildingBlockId);
+    if (!source) {
+      throw new BadRequestException(`Building block ${input.sourceBuildingBlockId} not found`);
+    }
+    if (!target) {
+      throw new BadRequestException(`Building block ${input.targetBuildingBlockId} not found`);
+    }
+    if (source.enterpriseId !== target.enterpriseId) {
+      throw new BadRequestException('Related building blocks must belong to the same enterprise');
+    }
+    assertCan(principal, 'model.write', source.enterpriseId);
 
     // hosted_on is containment ("runs on"), not a peer relationship like
     // depends_on/data_flow — a block can only run on one thing at a time, so
@@ -248,7 +308,15 @@ export class BuildingBlocksService {
     return created as BuildingBlockRelationship;
   }
 
-  async deleteRelationship(id: string): Promise<boolean> {
+  // The edge has no enterpriseId of its own; it is scoped through its source.
+  async deleteRelationship(principal: Principal, id: string): Promise<boolean> {
+    const edge = await this.db.query.buildingBlockRelationships.findFirst({
+      where: (t, { eq }) => eq(t.id, id),
+      with: { source: { columns: { enterpriseId: true } } },
+    });
+    if (!edge || !principal.enterpriseIds.includes(edge.source.enterpriseId)) return false;
+    assertCan(principal, 'model.write', edge.source.enterpriseId);
+
     const [deleted] = await this.db
       .delete(schema.buildingBlockRelationships)
       .where(eq(schema.buildingBlockRelationships.id, id))
@@ -262,10 +330,41 @@ export class BuildingBlocksService {
         'A building block must belong to at least one architecture domain',
       );
     }
-    if (input.kind === 'solution' && input.architectureLevel) {
-      throw new BadRequestException(
-        'architectureLevel only applies to architecture building blocks',
-      );
+    if (!architectureLevelAllowed(input.kind, input.architectureLevel)) {
+      throw new BadRequestException(ARCHITECTURE_LEVEL_MESSAGE);
+    }
+    // INV-1 for the block's own validity.
+    if (!isHalfOpenInterval(input.validFrom, input.validTo)) {
+      throw new BadRequestException(INTERVAL_MESSAGE);
+    }
+    if (input.icon && !isIconId(input.icon)) {
+      throw new BadRequestException(ICON_ID_MESSAGE);
+    }
+  }
+
+  // INV-9: the domains and organization units a block is assigned to belong
+  // to the block's own enterprise. Without this, an id guessed from another
+  // enterprise would be accepted and the classification would quietly lie.
+  private async validateReferences(input: BuildingBlockInput, enterpriseId: string) {
+    const domainIds = [...new Set(input.architectureDomainIds)];
+    const domains = await this.db.query.architectureDomains.findMany({
+      where: (t, { and, eq, inArray }) =>
+        and(inArray(t.id, domainIds), eq(t.enterpriseId, enterpriseId)),
+      columns: { id: true },
+    });
+    if (domains.length !== domainIds.length) {
+      throw new BadRequestException('Every architecture domain must belong to this enterprise');
+    }
+
+    const unitIds = [...new Set(input.organizationUnitIds)];
+    if (unitIds.length === 0) return;
+    const units = await this.db.query.organizationUnits.findMany({
+      where: (t, { and, eq, inArray }) =>
+        and(inArray(t.id, unitIds), eq(t.enterpriseId, enterpriseId)),
+      columns: { id: true },
+    });
+    if (units.length !== unitIds.length) {
+      throw new BadRequestException('Every organization unit must belong to this enterprise');
     }
   }
 
@@ -303,11 +402,19 @@ export class BuildingBlocksService {
     }
   }
 
-  architectureLandscape(filter: LandscapeFilter): Promise<MappedBuildingBlock[]> {
+  architectureLandscape(
+    principal: Principal,
+    filter: LandscapeFilter,
+  ): Promise<MappedBuildingBlock[]> {
+    assertEnterpriseAccess(principal, filter.enterpriseId);
     return this.landscape('architecture', filter);
   }
 
-  solutionsLandscape(filter: LandscapeFilter): Promise<MappedBuildingBlock[]> {
+  solutionsLandscape(
+    principal: Principal,
+    filter: LandscapeFilter,
+  ): Promise<MappedBuildingBlock[]> {
+    assertEnterpriseAccess(principal, filter.enterpriseId);
     return this.landscape('solution', filter);
   }
 

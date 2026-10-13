@@ -152,6 +152,18 @@ export function ActorFormSheet({
 
         <div className="flex flex-col gap-4 px-6 py-2">
           <label
+            htmlFor="actor-name"
+            className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+          >
+            Name
+            <Input
+              id="actor-name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </label>
+
+          <label
             htmlFor="actor-kind"
             className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
           >
@@ -172,18 +184,6 @@ export function ActorFormSheet({
               </SelectContent>
             </Select>
             <span className="font-normal">{ACTOR_KIND_HINT[form.kind]}</span>
-          </label>
-
-          <label
-            htmlFor="actor-name"
-            className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            Name
-            <Input
-              id="actor-name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
           </label>
 
           {form.kind === 'TEAM' && (

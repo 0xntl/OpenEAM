@@ -1,11 +1,19 @@
 import { gql } from '@apollo/client';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { createFileRoute, Link, notFound } from '@tanstack/react-router';
+import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
+import { ChevronLeft, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { BuildingBlockFormSheet } from '@/components/building-blocks/building-block-form-sheet';
+import { ModelIcon } from '@/components/icons/model-icon';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import {
   contentWidthClassName,
+  detailCardGridClassName,
+  detailDescriptionClassName,
+  detailFactsClassName,
+  Fact,
   PageHeader,
   pageBackLinkClassName,
   TitledCard,
@@ -25,8 +33,28 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { useEnterprise } from '@/lib/enterprise';
-import type { BuildingBlockRelationship, BuildingBlockRelationshipType } from '@/lib/entities';
+import { DetailSkeleton } from '@/components/ui/skeletons';
+import { Textarea } from '@/components/ui/textarea';
+import { useConfirm } from '@/lib/confirm';
+import { useEnterprise, WriteOnly } from '@/lib/enterprise';
+import type {
+  ArchitectureDomain,
+  ArchitectureLevel,
+  BuildingBlockRelationship,
+  BuildingBlockRelationshipType,
+  LifecyclePhase,
+  OrganizationUnit,
+} from '@/lib/entities';
+import {
+  ARCHITECTURE_LEVEL_LABEL,
+  BUILDING_BLOCK_KIND_LABEL,
+  formatValidity,
+  kindOf,
+  LIFECYCLE_LABEL,
+  RELATIONSHIP_TYPE_LABEL,
+  RELATIONSHIP_TYPES,
+} from '@/lib/labels';
+import { toast } from '@/lib/toast';
 import { SELECT_EMPTY_VALUE } from '@/lib/utils';
 
 const BUILDING_BLOCK_DETAIL_QUERY = gql`
@@ -35,6 +63,7 @@ const BUILDING_BLOCK_DETAIL_QUERY = gql`
       id
       name
       description
+      icon
       lifecyclePhase
       validFrom
       validTo
@@ -68,6 +97,20 @@ const BUILDING_BLOCK_DETAIL_QUERY = gql`
       name
       __typename
     }
+    architectureDomains(enterpriseId: $enterpriseId) {
+      id
+      name
+    }
+    organizationUnits(enterpriseId: $enterpriseId) {
+      id
+      name
+    }
+  }
+`;
+
+const DELETE_BUILDING_BLOCK = gql`
+  mutation DeleteBuildingBlock($id: String!) {
+    deleteBuildingBlock(id: $id)
   }
 `;
 
@@ -89,7 +132,8 @@ interface BuildingBlockDetail {
   id: string;
   name: string;
   description?: string | null;
-  lifecyclePhase: string;
+  icon?: string | null;
+  lifecyclePhase: LifecyclePhase;
   validFrom?: string | null;
   validTo?: string | null;
   architectureDomainIds: string[];
@@ -97,7 +141,7 @@ interface BuildingBlockDetail {
   outgoingRelationships: BuildingBlockRelationship[];
   incomingRelationships: BuildingBlockRelationship[];
   __typename: 'ArchitectureBuildingBlock' | 'SolutionBuildingBlock';
-  architectureLevel?: string | null;
+  architectureLevel?: ArchitectureLevel | null;
 }
 
 interface BuildingBlockRef {
@@ -109,24 +153,8 @@ interface BuildingBlockRef {
 interface BuildingBlockDetailData {
   buildingBlock: BuildingBlockDetail | null;
   buildingBlocks: BuildingBlockRef[];
-}
-
-const RELATIONSHIP_TYPE_LABEL: Record<BuildingBlockRelationshipType, string> = {
-  DEPENDS_ON: 'Depends on',
-  DATA_FLOW: 'Data flow',
-  HOSTED_ON: 'Hosted on',
-};
-
-function Item({ label }: { label: string }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-foreground">
-      {label}
-    </div>
-  );
-}
-
-function EmptyState({ label }: { label: string }) {
-  return <p className="text-xs text-muted-foreground italic">{label}</p>;
+  architectureDomains: ArchitectureDomain[];
+  organizationUnits: OrganizationUnit[];
 }
 
 function RelationshipRow({
@@ -160,13 +188,21 @@ function RelationshipRow({
         )}
         {(relationship.validFrom || relationship.validTo) && (
           <p className="text-muted-foreground">
-            {relationship.validFrom ?? '…'} – {relationship.validTo ?? '…'}
+            {formatValidity(relationship.validFrom, relationship.validTo)}
           </p>
         )}
       </div>
-      <Button variant="ghost" size="sm" onClick={onDelete}>
-        Delete
-      </Button>
+      <WriteOnly>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="hover:text-destructive"
+          onClick={onDelete}
+          aria-label={`Delete relationship to ${otherBlockName}`}
+        >
+          <Trash2 />
+        </Button>
+      </WriteOnly>
     </div>
   );
 }
@@ -197,9 +233,24 @@ function BuildingBlockRoute() {
   const [createRelationship, { error: createError }] = useMutation(
     CREATE_BUILDING_BLOCK_RELATIONSHIP,
   );
+  const confirm = useConfirm();
   const [deleteRelationship] = useMutation(DELETE_BUILDING_BLOCK_RELATIONSHIP);
+  const [deleteBuildingBlock] = useMutation(DELETE_BUILDING_BLOCK, {
+    update(cache, _result, { variables }) {
+      if (!variables?.id) return;
+      cache.evict({
+        id: cache.identify({ __typename: 'ArchitectureBuildingBlock', id: variables.id }),
+      });
+      cache.evict({
+        id: cache.identify({ __typename: 'SolutionBuildingBlock', id: variables.id }),
+      });
+      cache.gc();
+    },
+  });
+  const navigate = useNavigate();
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<RelationshipFormState>(emptyRelationshipForm);
 
   const openCreate = () => {
@@ -226,9 +277,18 @@ function BuildingBlockRoute() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this relationship?')) return;
+    if (!(await confirm({ title: 'Delete this relationship?', destructive: true }))) return;
     await deleteRelationship({ variables: { id } });
+    toast.success('Relationship deleted.');
     await refetch();
+  };
+
+  const handleDeleteBlock = async () => {
+    const name = data?.buildingBlock?.name ?? 'this building block';
+    if (!(await confirm({ title: `Delete "${name}"?`, destructive: true }))) return;
+    await deleteBuildingBlock({ variables: { id: buildingBlockId } });
+    toast.success(`"${name}" deleted.`);
+    navigate({ to: '/building-blocks' });
   };
 
   // The query is skipped until the enterprise context resolves (e.g. on a
@@ -236,67 +296,113 @@ function BuildingBlockRoute() {
   // that gap, so treat it the same as loading rather than falling through to
   // "not found" before the query has even had a chance to run.
   if (loading || !enterprise)
-    return <p className="px-6 py-8 text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <div className={contentWidthClassName}>
+        <DetailSkeleton />
+      </div>
+    );
   if (error)
-    return <p className="px-6 py-8 text-sm text-destructive">Failed to load building block.</p>;
+    return (
+      <div className={contentWidthClassName}>
+        <p className="text-sm text-destructive">Failed to load building block.</p>
+      </div>
+    );
   if (!data?.buildingBlock) throw notFound();
 
   const block = data.buildingBlock;
+  const kind = kindOf(block.__typename);
   const otherBlocks = data.buildingBlocks.filter((b) => b.id !== block.id);
   const nameById = new Map(data.buildingBlocks.map((b) => [b.id, b.name]));
+  const domainNames = block.architectureDomainIds
+    .map((id) => data.architectureDomains.find((d) => d.id === id)?.name)
+    .filter((n): n is string => Boolean(n));
+  const unitNames = block.organizationUnitLinks
+    .map((l) => data.organizationUnits.find((u) => u.id === l.organizationUnitId)?.name)
+    .filter((n): n is string => Boolean(n));
 
   return (
     <div className={contentWidthClassName}>
       <PageHeader
-        title={block.name}
+        title={
+          <span className="flex flex-wrap items-center gap-3">
+            {block.icon && <ModelIcon id={block.icon} size={24} />}
+            {block.name}
+            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+              {BUILDING_BLOCK_KIND_LABEL[kind]}
+            </span>
+          </span>
+        }
         back={
           <Link to="/building-blocks" className={pageBackLinkClassName}>
-            Building Blocks
+            <ChevronLeft className="size-3.5" /> Building Blocks
           </Link>
+        }
+        action={
+          <>
+            <WriteOnly>
+              <Button variant="ghost" size="sm" onClick={() => setEditOpen(true)}>
+                Edit
+              </Button>
+            </WriteOnly>
+            <WriteOnly>
+              <Button variant="destructive" size="sm" onClick={handleDeleteBlock}>
+                Delete
+              </Button>
+            </WriteOnly>
+          </>
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 text-xs">
-        <Item label={`Kind: ${block.__typename === 'ArchitectureBuildingBlock' ? 'ABB' : 'SBB'}`} />
-        <Item label={`Lifecycle: ${block.lifecyclePhase}`} />
-        {block.architectureLevel && <Item label={`Level: ${block.architectureLevel}`} />}
-        <Item label={`Valid: ${block.validFrom ?? '…'} – ${block.validTo ?? '…'}`} />
+      {block.description && <p className={detailDescriptionClassName}>{block.description}</p>}
+
+      <div className={detailFactsClassName}>
+        <Fact label="Lifecycle" value={LIFECYCLE_LABEL[block.lifecyclePhase]} />
+        {block.architectureLevel && (
+          <Fact label="Level" value={ARCHITECTURE_LEVEL_LABEL[block.architectureLevel]} />
+        )}
+        <Fact label="Valid" value={formatValidity(block.validFrom, block.validTo)} />
+        {domainNames.map((name) => (
+          <Fact key={name} label="Domain" value={name} />
+        ))}
+        {unitNames.map((name) => (
+          <Fact key={name} label="Unit" value={name} />
+        ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Outgoing relationships</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                What this building block depends on, exchanges data with, or runs on
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={openCreate}
-              disabled={otherBlocks.length === 0}
-            >
-              Add relationship
-            </Button>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {block.outgoingRelationships.length > 0 ? (
-              block.outgoingRelationships.map((rel) => (
-                <RelationshipRow
-                  key={rel.id}
-                  relationship={rel}
-                  otherBlockId={rel.targetBuildingBlockId}
-                  otherBlockName={nameById.get(rel.targetBuildingBlockId) ?? 'Unknown'}
-                  onDelete={() => handleDelete(rel.id)}
-                />
-              ))
-            ) : (
-              <EmptyState label="No relationships yet" />
-            )}
-          </div>
-        </div>
+      <div className={detailCardGridClassName}>
+        <TitledCard
+          title="Outgoing relationships"
+          subtitle="What this building block depends on, exchanges data with, or runs on"
+          action={
+            <WriteOnly>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={openCreate}
+                disabled={otherBlocks.length === 0}
+                title={
+                  otherBlocks.length === 0 ? 'No other building block to relate to yet' : undefined
+                }
+              >
+                Add relationship
+              </Button>
+            </WriteOnly>
+          }
+        >
+          {block.outgoingRelationships.length > 0 ? (
+            block.outgoingRelationships.map((rel) => (
+              <RelationshipRow
+                key={rel.id}
+                relationship={rel}
+                otherBlockId={rel.targetBuildingBlockId}
+                otherBlockName={nameById.get(rel.targetBuildingBlockId) ?? 'Unknown'}
+                onDelete={() => handleDelete(rel.id)}
+              />
+            ))
+          ) : (
+            <EmptyState label="No relationships yet" />
+          )}
+        </TitledCard>
 
         <TitledCard
           title="Incoming relationships"
@@ -346,10 +452,10 @@ function BuildingBlockRoute() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SELECT_EMPTY_VALUE}>—</SelectItem>
+                  <SelectItem value={SELECT_EMPTY_VALUE}>Not set</SelectItem>
                   {otherBlocks.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.name} ({b.__typename === 'ArchitectureBuildingBlock' ? 'ABB' : 'SBB'})
+                      {b.name} ({BUILDING_BLOCK_KIND_LABEL[kindOf(b.__typename)]})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -371,9 +477,11 @@ function BuildingBlockRoute() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="DEPENDS_ON">Depends on</SelectItem>
-                  <SelectItem value="DATA_FLOW">Data flow</SelectItem>
-                  <SelectItem value="HOSTED_ON">Hosted on</SelectItem>
+                  {RELATIONSHIP_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {RELATIONSHIP_TYPE_LABEL[t]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </label>
@@ -383,8 +491,9 @@ function BuildingBlockRoute() {
               className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
             >
               Description
-              <Input
+              <Textarea
                 id="rel-description"
+                rows={2}
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
@@ -422,11 +531,21 @@ function BuildingBlockRoute() {
 
           <SheetFooter>
             <Button onClick={handleCreate} disabled={!form.targetBuildingBlockId}>
-              Create
+              Add relationship
             </Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <BuildingBlockFormSheet
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        enterpriseId={enterprise.id}
+        block={block}
+        domains={data.architectureDomains}
+        organizationUnits={data.organizationUnits}
+        onSaved={() => void refetch()}
+      />
     </div>
   );
 }

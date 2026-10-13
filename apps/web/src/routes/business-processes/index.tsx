@@ -1,12 +1,14 @@
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Pencil } from 'lucide-react';
+import { Pencil, Workflow } from 'lucide-react';
 import { useState } from 'react';
 import { ProcessFormSheet } from '@/components/business-processes/process-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyCard } from '@/components/ui/empty-card';
 import { contentWidthClassName, PageHeader } from '@/components/ui/page-header';
-import { useEnterprise } from '@/lib/enterprise';
+import { ListSkeleton } from '@/components/ui/skeletons';
+import { useEnterprise, WriteOnly } from '@/lib/enterprise';
 import type { NamedRef } from '@/lib/entities';
 
 const BUSINESS_PROCESSES_QUERY = gql`
@@ -42,7 +44,7 @@ interface BusinessProcessesData {
 
 function ProcessCard({ process, onEdit }: { process: BusinessProcessRef; onEdit: () => void }) {
   return (
-    <div className="group flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-xs">
+    <div className="group flex flex-col gap-2 rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <Link
           to="/business-processes/$processId"
@@ -51,15 +53,17 @@ function ProcessCard({ process, onEdit }: { process: BusinessProcessRef; onEdit:
         >
           {process.name}
         </Link>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onEdit}
-          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-        >
-          <Pencil strokeWidth={2} />
-          <span className="sr-only">Edit</span>
-        </Button>
+        <WriteOnly>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onEdit}
+            className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Pencil strokeWidth={2} />
+            <span className="sr-only">Edit</span>
+          </Button>
+        </WriteOnly>
       </div>
       {!process.bpmnXml && (
         <span className="w-fit rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground italic">
@@ -112,13 +116,19 @@ function BusinessProcessesIndexRoute() {
       <PageHeader
         title="Business Processes"
         action={
-          <Button onClick={openCreate} disabled={capabilities.length === 0}>
-            New process
-          </Button>
+          <WriteOnly>
+            <Button
+              onClick={openCreate}
+              disabled={capabilities.length === 0}
+              title={capabilities.length === 0 ? 'Create a business capability first' : undefined}
+            >
+              New process
+            </Button>
+          </WriteOnly>
         }
       />
 
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {loading && !data && <ListSkeleton />}
       {error && <p className="text-sm text-destructive">Failed to load business processes.</p>}
 
       <div className="flex flex-col gap-6">
@@ -129,7 +139,7 @@ function BusinessProcessesIndexRoute() {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {cap?.name ?? capabilityId}
               </h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {processes.map((process) => (
                   <ProcessCard
                     key={process.id}
@@ -142,7 +152,19 @@ function BusinessProcessesIndexRoute() {
           );
         })}
         {data?.businessProcesses.length === 0 && (
-          <p className="text-sm text-muted-foreground">No business processes yet.</p>
+          <EmptyCard
+            className="col-span-full"
+            icon={Workflow}
+            title="No business processes yet"
+            description="How a capability is delivered, as an ordered flow with a trigger and an outcome. Each process belongs to one capability."
+            action={
+              <WriteOnly>
+                <Button onClick={openCreate} disabled={capabilities.length === 0}>
+                  New process
+                </Button>
+              </WriteOnly>
+            }
+          />
         )}
       </div>
 

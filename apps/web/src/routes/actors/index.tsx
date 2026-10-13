@@ -1,13 +1,15 @@
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Pencil } from 'lucide-react';
+import { Pencil, Users } from 'lucide-react';
 import { useState } from 'react';
 import { ActorFormSheet } from '@/components/actors/actor-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyCard } from '@/components/ui/empty-card';
 import { contentWidthClassName, PageHeader } from '@/components/ui/page-header';
+import { ListSkeleton } from '@/components/ui/skeletons';
 import { ACTOR_KIND_LABEL, ACTOR_KIND_STYLE, ACTOR_KINDS } from '@/lib/actor';
-import { useEnterprise } from '@/lib/enterprise';
+import { useEnterprise, WriteOnly } from '@/lib/enterprise';
 import type { ActorKind, ActorSummary } from '@/lib/entities';
 
 const ACTORS_QUERY = gql`
@@ -41,7 +43,7 @@ function ActorCard({ actor, onEdit }: { actor: ActorSummary; onEdit: () => void 
   const accountable = open.filter((c) => c.involvement === 'ACCOUNTABLE').length;
 
   return (
-    <div className="group relative flex flex-col gap-2 rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/20">
+    <div className="group relative flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <Link
           to="/actors/$actorId"
@@ -71,14 +73,17 @@ function ActorCard({ actor, onEdit }: { actor: ActorSummary; onEdit: () => void 
         {accountable > 0 && ` · accountable for ${accountable}`}
       </p>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onEdit}
-        className="absolute right-2 bottom-2 h-7 px-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <Pencil className="size-3" /> Edit
-      </Button>
+      <WriteOnly>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onEdit}
+          className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        >
+          <Pencil strokeWidth={2} />
+          <span className="sr-only">Edit</span>
+        </Button>
+      </WriteOnly>
     </div>
   );
 }
@@ -112,16 +117,18 @@ function ActorsIndexRoute() {
       <PageHeader
         title="Actors"
         action={
-          <Button onClick={openCreate} disabled={!enterprise}>
-            New actor
-          </Button>
+          <WriteOnly>
+            <Button onClick={openCreate} disabled={!enterprise}>
+              New actor
+            </Button>
+          </WriteOnly>
         }
       />
 
       {!enterprise && !loading && (
         <p className="text-sm text-muted-foreground">Create an enterprise to get started.</p>
       )}
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {loading && !data && <ListSkeleton />}
       {error && <p className="text-sm text-destructive">Failed to load actors.</p>}
 
       {/* Grouped by kind rather than listed flat: the kinds answer different
@@ -132,7 +139,7 @@ function ActorsIndexRoute() {
         if (group.length === 0) return null;
         return (
           <section key={kind} className="flex flex-col gap-3 pt-2">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {ACTOR_KIND_LABEL[kind as ActorKind]}
               <span className="ml-2 font-normal opacity-60">{group.length}</span>
             </h2>
@@ -146,9 +153,19 @@ function ActorsIndexRoute() {
       })}
 
       {!loading && actors.length === 0 && enterprise && (
-        <p className="text-sm text-muted-foreground">
-          No actors yet. An actor is whoever answers for a capability — usually a role or a team.
-        </p>
+        <EmptyCard
+          className="col-span-full"
+          icon={Users}
+          title="No actors yet"
+          description="Whoever answers for a capability or does its work — usually a role or a team, sometimes a person or an external party."
+          action={
+            <WriteOnly>
+              <Button onClick={openCreate} disabled={!enterprise}>
+                New actor
+              </Button>
+            </WriteOnly>
+          }
+        />
       )}
 
       {enterprise && (

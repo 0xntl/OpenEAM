@@ -1,1 +1,0 @@
-ALTER TABLE "business_processes" ADD COLUMN "bpmn_xml" text;

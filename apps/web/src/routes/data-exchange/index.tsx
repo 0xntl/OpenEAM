@@ -2,7 +2,10 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { contentWidthClassName, PageHeader } from '@/components/ui/page-header';
+import { apiBase } from '@/lib/apollo';
+import { useConfirm } from '@/lib/confirm';
 import { useEnterprise } from '@/lib/enterprise';
+import { toast } from '@/lib/toast';
 
 type Status =
   | { kind: 'idle' }
@@ -11,7 +14,8 @@ type Status =
 
 async function downloadExport(enterpriseId: string, enterpriseName: string) {
   const res = await fetch(
-    `/api/data-exchange/export?enterpriseId=${encodeURIComponent(enterpriseId)}`,
+    `${apiBase}/api/data-exchange/export?enterpriseId=${encodeURIComponent(enterpriseId)}`,
+    { credentials: 'include' },
   );
   if (!res.ok) throw new Error(`Export failed (${res.status})`);
   const blob = await res.blob();
@@ -27,8 +31,9 @@ async function downloadExport(enterpriseId: string, enterpriseName: string) {
 async function uploadImport(file: File) {
   const text = await file.text();
   const body = JSON.parse(text);
-  const res = await fetch('/api/data-exchange/import', {
+  const res = await fetch(`${apiBase}/api/data-exchange/import`, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -39,10 +44,13 @@ async function uploadImport(file: File) {
 }
 
 function DataExchangeRoute() {
-  const { enterprise } = useEnterprise();
+  const { enterprise, can } = useEnterprise();
+  const canExport = can('data.export');
+  const canImport = can('data.import');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
   const [busy, setBusy] = useState(false);
+  const confirm = useConfirm();
 
   const handleExport = async () => {
     if (!enterprise) return;
@@ -63,15 +71,20 @@ function DataExchangeRoute() {
     e.target.value = '';
     if (!file) return;
 
-    const confirmed = window.confirm(
-      'Importing replaces the enterprises contained in the bundle (all their capabilities, processes, value streams, and building blocks). Other enterprises are not touched. Continue?',
-    );
+    const confirmed = await confirm({
+      title: 'Replace the enterprises in this bundle?',
+      description:
+        'Everything modelled in them — value streams, capabilities, processes, actors, information and building blocks — is replaced by the bundle. Other enterprises are not touched.',
+      confirmLabel: 'Import',
+      destructive: true,
+    });
     if (!confirmed) return;
 
     setBusy(true);
     setStatus({ kind: 'idle' });
     try {
       await uploadImport(file);
+      toast.success('Import complete.');
       setStatus({
         kind: 'success',
         message: 'Import complete. Reload the relevant pages to see the new data.',
@@ -97,8 +110,13 @@ function DataExchangeRoute() {
           <p className="text-sm font-semibold text-foreground">Export</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Download {enterprise ? `"${enterprise.name}"` : 'the current enterprise'} as JSON.
+            {enterprise && !canExport && ' Only members of the enterprise can export it.'}
           </p>
-          <Button className="mt-3" onClick={handleExport} disabled={busy || !enterprise}>
+          <Button
+            className="mt-3"
+            onClick={handleExport}
+            disabled={busy || !enterprise || !canExport}
+          >
             Export JSON
           </Button>
         </div>
@@ -106,7 +124,8 @@ function DataExchangeRoute() {
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-sm font-semibold text-foreground">Import</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Upload a JSON bundle. This replaces all existing data.
+            Upload a JSON bundle. It replaces the enterprises it contains.
+            {!canImport && ' Only an owner of the enterprise can do this.'}
           </p>
           <input
             ref={fileInputRef}
@@ -119,7 +138,7 @@ function DataExchangeRoute() {
             className="mt-3"
             variant="destructive"
             onClick={() => fileInputRef.current?.click()}
-            disabled={busy}
+            disabled={busy || !canImport}
           >
             Import JSON
           </Button>

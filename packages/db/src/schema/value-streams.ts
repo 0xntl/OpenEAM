@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { relations } from 'drizzle-orm';
-import { index, integer, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, primaryKey, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { businessCapabilities } from './business-capabilities';
 import { enterprises } from './enterprises';
 import { timestamps } from './helpers';
@@ -8,10 +7,8 @@ import { timestamps } from './helpers';
 export const valueStreams = pgTable(
   'value_streams',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    enterpriseId: text('enterprise_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    enterpriseId: uuid('enterprise_id')
       .notNull()
       .references(() => enterprises.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
@@ -24,26 +21,27 @@ export const valueStreams = pgTable(
 export const valueStreamStages = pgTable(
   'value_stream_stages',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    valueStreamId: text('value_stream_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    valueStreamId: uuid('value_stream_id')
       .notNull()
       .references(() => valueStreams.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     position: integer('position').notNull(),
     ...timestamps,
   },
-  (t) => [index('value_stream_stages_value_stream_id_idx').on(t.valueStreamId)],
+  (t) => [
+    index('value_stream_stages_value_stream_id_idx').on(t.valueStreamId),
+    unique('value_stream_stages_value_stream_id_position_unique').on(t.valueStreamId, t.position),
+  ],
 );
 
 export const stageCapabilities = pgTable(
   'stage_capabilities',
   {
-    stageId: text('stage_id')
+    stageId: uuid('stage_id')
       .notNull()
       .references(() => valueStreamStages.id, { onDelete: 'cascade' }),
-    capabilityId: text('capability_id')
+    capabilityId: uuid('capability_id')
       .notNull()
       .references(() => businessCapabilities.id, { onDelete: 'cascade' }),
     position: integer('position').notNull(),
@@ -51,6 +49,7 @@ export const stageCapabilities = pgTable(
   (t) => [
     primaryKey({ columns: [t.stageId, t.capabilityId] }),
     index('stage_capabilities_capability_id_idx').on(t.capabilityId),
+    unique('stage_capabilities_stage_id_position_unique').on(t.stageId, t.position),
   ],
 );
 

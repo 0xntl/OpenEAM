@@ -15,10 +15,11 @@ Terms are grouped by the question they answer.
 
 **Enterprise** — the scope of an architecture effort: one or more organizations,
 or parts of them, pursuing a shared goal. A corporate group, a cross-company
-collaboration, or a household. Not a synonym for "company" and not a tenant
-boundary — it is a *modelling* boundary. Every modelled row belongs to exactly
-one (INV-9), and two enterprises that model the same real-world system link their
-models rather than sharing rows.
+collaboration, or a household. Not a synonym for "company". It is a *modelling*
+boundary — every modelled row belongs to exactly one (INV-9), and two enterprises
+that model the same real-world system link their models rather than sharing
+rows — and, since accounts exist, also the *access* boundary: what a member of
+an enterprise can see is exactly that enterprise (INV-16).
 
 **Goal** — the shared goal that defines an enterprise's scope. Part of the
 definition, not documentation: if you cannot state the goal, you have not yet
@@ -91,6 +92,12 @@ moves.
 `active`, `phasing_out`, `retired`. Distinct from validity dates. A block can be
 `phasing_out` for two years while remaining perfectly valid; the phase is
 *intent*, the dates are *fact*.
+
+**Icon (of a building block)** — an Iconify id (`simple-icons:postgresql`,
+`lucide:database`) naming a glyph this instance serves. Data, not an image:
+chosen by a person so a list or diagram reads by shape, and saying nothing
+about the model's structure (D-22). Distinct from the UI's own icons, which
+are code.
 
 ## Actors
 
@@ -165,6 +172,38 @@ them.
 **Import replaces, it does not merge.** Importing a bundle deletes exactly the
 enterprises it names and recreates them. It touches no other enterprise. There is
 no partial or additive import.
+
+## Access
+
+**Account** — someone who can sign in: an email, a display name, a password.
+Instance-level, not part of any enterprise's model, and therefore not in a data
+bundle.
+
+**Instance admin** — an account that runs the instance: other accounts and
+sign-up (D-17), and an implicit owner of every enterprise (D-21). The first
+account is one.
+
+**Member** — an account with access to an enterprise, in one of three
+**enterprise roles** (D-20): **owner** (everything, including members and
+deleting the enterprise), **editor** (models it), **viewer** (reads it). Not
+to be confused with the actor kind `role` (see Actors), which is something
+modelled, not something granted.
+
+**Permission** — one entry of the closed catalogue in `policy.ts` (`model.write`,
+`members.manage`, …). Roles are bundles of permissions; code checks
+permissions, never roles.
+
+**Session** — one signed-in browser or script. A random token whose hash the
+server keeps; the token itself is in an httpOnly cookie or a bearer header.
+Signing out deletes the session, not the account.
+
+**Setup link** — a one-time URL through which the account's owner sets their
+password: on creation, and again when a password is forgotten (D-19). Issued
+by an admin, valid seven days, revoked by the next one.
+
+**Principal** — in the API, the resolved session attached to a request: the
+account plus the ids of the enterprises it is a member of. Every service method
+takes one and scopes its query by it.
 
 ## Terms deliberately not used
 

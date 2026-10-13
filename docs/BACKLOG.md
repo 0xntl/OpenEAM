@@ -15,40 +15,24 @@ tracked outside the repository. Entries without one are not on that plan.
 
 ## Before this is reachable from outside localhost
 
-These are the reason "basic access restriction" cannot be the last thing done.
+Accounts, sessions, membership scoping (INV-16), env validation, GraphiQL
+gating, rate-limited sign-in with per-account lockout, an Origin check, helmet,
+the closed data-exchange endpoints, and the validating importer have landed
+(T2.1 … T2.6; D-15 and D-16 in [DECISIONS.md](DECISIONS.md), the measures and
+their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 
-- **Close the data-exchange endpoints** (T2.1) — `GET /api/data-exchange/export`
-  with no parameters returns every enterprise, unauthenticated.
-  `POST /api/data-exchange/import` deletes and replaces them. The first person to
-  find the URL has full read and write. Require an admin token at minimum; better,
-  put both routes behind the same protection as everything else and drop the
-  parameterless full-database export entirely.
+- **Content Security Policy for the SPA** — nginx sets nosniff, frame-deny,
+  referrer and permissions headers but no CSP: `index.html` carries an inline
+  theme script and bpmn-js injects styles. Needs a build step that hashes the
+  inline script (or moves it to a file) and a policy that allows the style
+  injection; then `Strict-Transport-Security` once TLS is the norm.
 
-- **Gate GraphiQL and introspection outside dev** (T2.2) — `graphiql: true` is
-  hardcoded in `GraphQLModule.forRoot` (`apps/api/src/app.module.ts`) with no
-  environment check, and introspection is not explicitly disabled either, so any
-  deployment ships an interactive query IDE over the model. Gate both behind
-  `NODE_ENV !== 'production'` or a dedicated flag.
+- **Security tests in CI** — the measures above were verified with a hand-run
+  script (41 checks: session handling, CSRF vectors, cross-tenant reads and
+  writes through GraphQL and the importer, lockout with forged
+  `X-Forwarded-For`). That script should become the first integration tests
+  once T1.3 lands; until then nothing guards against a regression.
 
-- **Validate env vars at boot** (T2.3) — `apps/api/src/main.ts` reads
-  `DATABASE_URL` / `API_PORT` / `WEB_ORIGIN` ad hoc via `process.env` with `??`
-  fallbacks, so a bad production config fails at the first request instead of at
-  startup. A small zod-validated config object would fail fast with a clear
-  message; zod is already a dependency.
-
-- **Security headers and request throttling** (T2.4) — no `helmet`, no rate
-  limiting. Cheap now, easy to forget the moment the API is reachable.
-
-- **Enforce the enterprise boundary in the service layer** (T2.5) — services scope
-  `findAll` by enterprise, then scope `findOne`, `update` and `delete` by bare id,
-  so any id from any enterprise is readable and deletable. Harmless with one user,
-  and precisely the assumption that becomes broken access control the day there is
-  a second. Eight services.
-
-- **Apply service invariants on the import path** (T2.6, US-1.11) — the importer
-  writes rows directly and bypasses every rule the services enforce. It is also
-  the restore path, so a bad bundle can quietly leave a landscape that lies. See
-  the invariant table in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Foundation
 
@@ -57,7 +41,7 @@ These are the reason "basic access restriction" cannot be the last thing done.
   this existing. Tool choice stays Vitest; the `test` / `test:watch` scripts and
   the CI step go in with it.
 
-- **Invariant tests** (T1.4) — turn INV-1 … INV-15 in
+- **Invariant tests** (T1.4) — turn INV-1 … INV-17 in
   [ARCHITECTURE.md](ARCHITECTURE.md) into tests. They are already written down as
   rules; this is the cheapest test anyone will ever write, and the current
   Definition of Done (lint, typecheck, build) proves only that the code compiles.
@@ -82,23 +66,12 @@ These are the reason "basic access restriction" cannot be the last thing done.
   peer-dependency ghost in `node_modules` that silently broke a typecheck. CodeQL
   is free on public repositories.
 
-- **App containers and Compose app services** (T3.1, T3.2) — Dockerfiles for
-  `apps/api` (multi-stage, `pnpm deploy --prod`, `node dist/main.js`) and
-  `apps/web` (multi-stage build → nginx serving the SPA, proxying `/graphql` and
-  `/health`), plus a root `.dockerignore` and the `api` / `web` services in
-  `compose.yml`. This is simultaneously the deployment artifact and the "easy
-  self-host" promise the README already makes — one piece of work, two payoffs.
-  Known trap: the API image must build `@openeam/db` before `apps/api`, since the
-  API consumes the package's compiled `dist`.
-
-- **Run migrations on container startup** (T3.3) — a self-hoster should never be
-  asked to run drizzle-kit by hand.
+- **Publish container images** (T3.4) — the images build in CI but are not
+  pushed anywhere, so a self-hoster still builds locally. Push to GHCR on a tag
+  once releases exist (T4.4), and point the Compose `image:` fields at them with
+  `build:` kept as the fallback.
 
 ## Model and data
-
-- **Id collisions surface as a 500** — importing a bundle whose ids already exist
-  under a different enterprise fails with a Drizzle duplicate-key stack trace
-  rather than a readable error naming the offending id. Belongs with T2.6.
 
 - **No mutation to link a building block to a business capability** —
   `buildingBlockCapabilities` (which ABBs realize which capability) can only be set
@@ -120,20 +93,15 @@ These are the reason "basic access restriction" cannot be the last thing done.
   built around — which makes a current-looking answer quietly wrong. At minimum:
   separate live from closed; better, respect the landscape's `asOf`.
 
-- **The landscape diagram does not fit to the viewport** — at ~58 building blocks
-  the graph renders clipped at the top with dead space below, and there is no
-  fit-to-view or zoom-to-extent. Invisible with a six-block model; obvious with a
-  realistic one, and it is the screen a demo lives on.
-
 ## Project hygiene
 
 - **Releases mean nothing yet** (T4.4) — every package is `0.0.0`, there are no
   tags and no CHANGELOG. A roadmap with a "release" column needs releases to be
   things.
 
-- **No SECURITY.md** (T4.4) — an Apache-2.0 public repository with no
-  authentication needs a disclosure path more than most. Issue templates belong
-  here too.
+- **No SECURITY.md** (T4.4) — an Apache-2.0 public repository that now ships
+  its own authentication needs a disclosure path. Issue templates belong here
+  too.
 
 - **The Definition of Done has no test criterion** — [CONTRIBUTING.md](../CONTRIBUTING.md)
   requires lint, typecheck and build. For code that is not reviewed line by line,

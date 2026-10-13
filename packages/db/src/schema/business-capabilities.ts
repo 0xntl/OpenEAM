@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { relations } from 'drizzle-orm';
-import { index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core';
+import { index, pgEnum, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { capabilityActors } from './actors';
 import { buildingBlockCapabilities } from './building-blocks';
 import { businessProcesses } from './business-processes';
@@ -23,10 +22,8 @@ export const capabilityDirection = pgEnum('capability_direction', [
 export const businessCapabilities = pgTable(
   'business_capabilities',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    enterpriseId: text('enterprise_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    enterpriseId: uuid('enterprise_id')
       .notNull()
       .references(() => enterprises.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
@@ -34,7 +31,12 @@ export const businessCapabilities = pgTable(
     direction: capabilityDirection('direction'),
     ...timestamps,
   },
-  (t) => [index('business_capabilities_enterprise_id_idx').on(t.enterpriseId)],
+  (t) => [
+    index('business_capabilities_enterprise_id_idx').on(t.enterpriseId),
+    // Lets child rows reference (id, enterprise_id) together, so the database
+    // itself refuses a process whose capability sits in another enterprise.
+    unique('business_capabilities_id_enterprise_id_unique').on(t.id, t.enterpriseId),
+  ],
 );
 
 export const businessCapabilitiesRelations = relations(businessCapabilities, ({ many }) => ({

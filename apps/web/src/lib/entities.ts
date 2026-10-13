@@ -121,6 +121,8 @@ export interface BuildingBlock {
   id: string;
   name: string;
   description?: string | null;
+  // Iconify id ("simple-icons:postgresql", "lucide:database") or null; see lib/icons.ts.
+  icon?: string | null;
   lifecyclePhase: LifecyclePhase;
   validFrom?: string | null;
   validTo?: string | null;

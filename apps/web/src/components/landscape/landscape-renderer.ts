@@ -21,6 +21,7 @@ import type EventBus from 'diagram-js/lib/core/EventBus';
 import type { ConnectionLike, ShapeLike } from 'diagram-js/lib/core/Types';
 import BaseRenderer from 'diagram-js/lib/draw/BaseRenderer';
 import { append as svgAppend, attr as svgAttr, create as svgCreate } from 'tiny-svg';
+import { iconScale, iconSvg, type RawIconSvg } from '@/lib/icons';
 import type { DiagramEdge, DiagramNode } from './landscape-layout';
 
 const ARROW_MARKER_ID = 'landscape-diagram-arrow';
@@ -91,6 +92,35 @@ const EDGE_STYLES: Record<DiagramEdge['kind'], { stroke: string; dashed: boolean
 
 function truncate(label: string, max = 22): string {
   return label.length > max ? `${label.slice(0, max - 1)}…` : label;
+}
+
+// Model icon sizes inside a node: a leaf block shows it at 20px to the left
+// of its centred label, a container at 14px before its top-left label.
+const LEAF_ICON_SIZE = 20;
+const LEAF_ICON_X = 12;
+const CONTAINER_ICON_SIZE = 14;
+const CONTAINER_ICON_X = 10;
+
+// The icon is inlined as a nested <svg> so the diagram stays one
+// self-contained SVG (no <use> into a sprite, nothing to fetch when it is
+// exported). Its paths use currentColor, so the label color applies.
+function drawIcon(parentGfx: SVGElement, icon: RawIconSvg, x: number, y: number, size: number) {
+  const el = svgCreate('svg', { ...icon.attributes, x, y, width: size, height: size });
+  el.innerHTML = icon.body;
+  el.style.color = 'var(--landscape-label)';
+  svgAppend(parentGfx, el);
+}
+
+// Looks the icon up in the cache preloadIcons() filled (landscape-layout.ts)
+// and scales a filled brand logo down a little, as the React side does.
+function resolveIcon(
+  id: string | undefined,
+  size: number,
+): { svg: RawIconSvg; size: number } | undefined {
+  if (!id) return undefined;
+  const scaled = Math.round(size * iconScale(id));
+  const svg = iconSvg(id, scaled);
+  return svg ? { svg, size: scaled } : undefined;
 }
 
 type RenderableNode = DiagramNode & { isContainer?: boolean };
@@ -194,13 +224,31 @@ class LandscapeRenderer extends BaseRenderer {
         ? drawCylinder(parentGfx, width, height, colors)
         : drawRoundedRect(parentGfx, width, height, colors, Boolean(node.isContainer));
 
+    const icon = resolveIcon(node.icon, node.isContainer ? CONTAINER_ICON_SIZE : LEAF_ICON_SIZE);
+    if (icon) {
+      if (node.isContainer) {
+        drawIcon(parentGfx, icon.svg, CONTAINER_ICON_X, 16 - CONTAINER_ICON_SIZE + 2, icon.size);
+      } else {
+        drawIcon(parentGfx, icon.svg, LEAF_ICON_X, (height - icon.size) / 2, icon.size);
+      }
+    }
+
+    // With an icon, the label gives up the icon's strip on the left and
+    // centres in what remains, so icon and text read as one unit.
+    const labelInset = icon ? LEAF_ICON_X + LEAF_ICON_SIZE + 4 : 0;
     const text = svgCreate('text');
     svgAttr(
       text,
       node.isContainer
-        ? { x: 10, y: 16, 'text-anchor': 'start', 'font-size': 11, 'font-weight': 600 }
+        ? {
+            x: icon ? CONTAINER_ICON_X + CONTAINER_ICON_SIZE + 6 : 10,
+            y: 16,
+            'text-anchor': 'start',
+            'font-size': 11,
+            'font-weight': 600,
+          }
         : {
-            x: width / 2,
+            x: labelInset + (width - labelInset - 8) / 2,
             y: height / 2,
             'text-anchor': 'middle',
             'dominant-baseline': 'middle',
@@ -208,7 +256,7 @@ class LandscapeRenderer extends BaseRenderer {
           },
     );
     svgAttr(text, { fill: 'var(--landscape-label)' });
-    text.textContent = truncate(node.label);
+    text.textContent = truncate(node.label, icon && !node.isContainer ? 18 : 22);
     const title = svgCreate('title');
     title.textContent = `${node.label} (${node.kind === 'architecture' ? 'Architecture' : 'Solution'} Building Block)`;
     svgAppend(text, title);

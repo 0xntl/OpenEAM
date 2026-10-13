@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { relations } from 'drizzle-orm';
-import { type AnyPgColumn, index, pgTable, text } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import { check, foreignKey, index, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { buildingBlockOrganizationUnits } from './building-blocks';
 import { enterprises } from './enterprises';
 import { timestamps } from './helpers';
@@ -11,22 +10,27 @@ import { timestamps } from './helpers';
 export const organizationUnits = pgTable(
   'organization_units',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    enterpriseId: text('enterprise_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    enterpriseId: uuid('enterprise_id')
       .notNull()
       .references(() => enterprises.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
-    parentId: text('parent_id').references((): AnyPgColumn => organizationUnits.id, {
-      onDelete: 'cascade',
-    }),
+    parentId: uuid('parent_id'),
     ...timestamps,
   },
   (t) => [
     index('organization_units_parent_id_idx').on(t.parentId),
     index('organization_units_enterprise_id_idx').on(t.enterpriseId),
+    unique('organization_units_id_enterprise_id_unique').on(t.id, t.enterpriseId),
+    // The parent has to be a unit of the same enterprise; deleting a parent
+    // takes its subtree with it.
+    foreignKey({
+      name: 'organization_units_parent_fk',
+      columns: [t.parentId, t.enterpriseId],
+      foreignColumns: [t.id, t.enterpriseId],
+    }).onDelete('cascade'),
+    check('organization_units_not_own_parent_check', sql`${t.parentId} IS DISTINCT FROM ${t.id}`),
   ],
 );
 

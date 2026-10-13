@@ -1,6 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Database } from '@openeam/db';
-import { eq, schema } from '@openeam/db';
+import { and, eq, inArray, schema } from '@openeam/db';
+import { assertCan } from '../auth/policy';
+import { assertEnterpriseAccess, type Principal } from '../auth/principal';
+import { INTERVAL_MESSAGE, isHalfOpenInterval } from '../common/invariants';
 import { DATABASE } from '../db.module';
 import type {
   CapabilityInformationInput,
@@ -26,7 +29,8 @@ type InformationObjectRow = {
 export class InformationObjectsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async findAll(enterpriseId: string): Promise<InformationObject[]> {
+  async findAll(principal: Principal, enterpriseId: string): Promise<InformationObject[]> {
+    assertEnterpriseAccess(principal, enterpriseId);
     const rows = await this.db.query.informationObjects.findMany({
       where: (t, { eq: equals }) => equals(t.enterpriseId, enterpriseId),
       orderBy: (t, { asc }) => [asc(t.name)],
@@ -35,15 +39,21 @@ export class InformationObjectsService {
     return rows.map(toInformationObject);
   }
 
-  async findOne(id: string): Promise<InformationObject | undefined> {
+  // Scoped to the caller's enterprises (INV-16).
+  async findOne(principal: Principal, id: string): Promise<InformationObject | undefined> {
     const row = await this.db.query.informationObjects.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, id),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(equals(t.id, id), inArray(t.enterpriseId, principal.enterpriseIds)),
       with: { capabilityLinks: { with: { capability: true } } },
     });
     return row ? toInformationObject(row) : undefined;
   }
 
-  async create(input: InformationObjectInputShape): Promise<InformationObject> {
+  async create(
+    principal: Principal,
+    input: InformationObjectInputShape,
+  ): Promise<InformationObject> {
+    assertCan(principal, 'model.write', input.enterpriseId);
     const [inserted] = await this.db
       .insert(schema.informationObjects)
       .values({
@@ -54,7 +64,7 @@ export class InformationObjectsService {
       .returning({ id: schema.informationObjects.id });
 
     if (!inserted) throw new NotFoundException('Information object insert returned no row');
-    const created = await this.findOne(inserted.id);
+    const created = await this.findOne(principal, inserted.id);
     if (!created) {
       throw new NotFoundException(`Information object ${inserted.id} not found after creation`);
     }
@@ -63,43 +73,69 @@ export class InformationObjectsService {
 
   // enterpriseId is intentionally not updatable, same as every other entity:
   // rows never move between enterprises (see docs/VISION.md).
-  async update(id: string, input: InformationObjectInputShape): Promise<InformationObject> {
+  async update(
+    principal: Principal,
+    id: string,
+    input: InformationObjectInputShape,
+  ): Promise<InformationObject> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) throw new NotFoundException(`Information object ${id} not found`);
+    assertCan(principal, 'model.write', existing.enterpriseId);
     const [updated] = await this.db
       .update(schema.informationObjects)
       .set({ name: input.name, description: input.description ?? null })
-      .where(eq(schema.informationObjects.id, id))
+      .where(
+        and(
+          eq(schema.informationObjects.id, id),
+          inArray(schema.informationObjects.enterpriseId, principal.enterpriseIds),
+        ),
+      )
       .returning({ id: schema.informationObjects.id });
 
     if (!updated) throw new NotFoundException(`Information object ${id} not found`);
-    const result = await this.findOne(id);
+    const result = await this.findOne(principal, id);
     if (!result) throw new NotFoundException(`Information object ${id} not found after update`);
     return result;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(principal: Principal, id: string): Promise<boolean> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) return false;
+    assertCan(principal, 'model.write', existing.enterpriseId);
     const [deleted] = await this.db
       .delete(schema.informationObjects)
-      .where(eq(schema.informationObjects.id, id))
+      .where(
+        and(
+          eq(schema.informationObjects.id, id),
+          inArray(schema.informationObjects.enterpriseId, principal.enterpriseIds),
+        ),
+      )
       .returning({ id: schema.informationObjects.id });
     return Boolean(deleted);
   }
 
-  async link(input: CapabilityInformationInput): Promise<InformationObject> {
+  async link(principal: Principal, input: CapabilityInformationInput): Promise<InformationObject> {
     const capability = await this.db.query.businessCapabilities.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, input.capabilityId),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(equals(t.id, input.capabilityId), inArray(t.enterpriseId, principal.enterpriseIds)),
     });
     if (!capability) {
       throw new BadRequestException(`Business capability ${input.capabilityId} not found`);
     }
+    assertCan(principal, 'model.write', capability.enterpriseId);
 
     const object = await this.db.query.informationObjects.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, input.informationObjectId),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(
+          equals(t.id, input.informationObjectId),
+          inArray(t.enterpriseId, principal.enterpriseIds),
+        ),
     });
     if (!object) {
       throw new BadRequestException(`Information object ${input.informationObjectId} not found`);
     }
 
-    // INV-9: a link may not straddle two enterprises. Nothing else enforces
+    // INV-11: a link may not straddle two enterprises. Nothing else enforces
     // this — both ids are valid on their own, and the pair is what is wrong.
     if (capability.enterpriseId !== object.enterpriseId) {
       throw new BadRequestException(
@@ -108,11 +144,11 @@ export class InformationObjectsService {
     }
 
     // INV-1: half-open, so an interval that starts where it ends is empty.
-    if (input.validFrom && input.validTo && input.validFrom >= input.validTo) {
-      throw new BadRequestException('validFrom must be earlier than validTo');
+    if (!isHalfOpenInterval(input.validFrom, input.validTo)) {
+      throw new BadRequestException(INTERVAL_MESSAGE);
     }
 
-    // Same rule as hosted_on (INV-5): one *open* link per pair and usage.
+    // INV-12, the same rule as hosted_on (INV-5): one *open* link per pair.
     // Closing the existing one (setting validTo) before opening another is the
     // caller's job, exactly as it is for every temporal link in this schema.
     if (!input.validTo) {
@@ -139,14 +175,24 @@ export class InformationObjectsService {
       validTo: input.validTo ?? null,
     });
 
-    const result = await this.findOne(input.informationObjectId);
+    const result = await this.findOne(principal, input.informationObjectId);
     if (!result) {
       throw new NotFoundException(`Information object ${input.informationObjectId} not found`);
     }
     return result;
   }
 
-  async unlink(linkId: string): Promise<boolean> {
+  // The link has no enterpriseId of its own; it is scoped through the object.
+  async unlink(principal: Principal, linkId: string): Promise<boolean> {
+    const link = await this.db.query.capabilityInformation.findFirst({
+      where: (t, { eq: equals }) => equals(t.id, linkId),
+      with: { informationObject: { columns: { enterpriseId: true } } },
+    });
+    if (!link || !principal.enterpriseIds.includes(link.informationObject.enterpriseId)) {
+      return false;
+    }
+    assertCan(principal, 'model.write', link.informationObject.enterpriseId);
+
     const [deleted] = await this.db
       .delete(schema.capabilityInformation)
       .where(eq(schema.capabilityInformation.id, linkId))

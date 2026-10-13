@@ -1,6 +1,14 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Database } from '@openeam/db';
-import { eq, schema } from '@openeam/db';
+import { and, eq, inArray, schema } from '@openeam/db';
+import { assertCan } from '../auth/policy';
+import { assertEnterpriseAccess, type Principal } from '../auth/principal';
+import {
+  INTERVAL_MESSAGE,
+  isHalfOpenInterval,
+  ORGANIZATION_UNIT_MESSAGE,
+  organizationUnitAllowed,
+} from '../common/invariants';
 import { DATABASE } from '../db.module';
 import type {
   Actor,
@@ -36,7 +44,8 @@ const withLinks = {
 export class ActorsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async findAll(enterpriseId: string): Promise<Actor[]> {
+  async findAll(principal: Principal, enterpriseId: string): Promise<Actor[]> {
+    assertEnterpriseAccess(principal, enterpriseId);
     const rows = await this.db.query.actors.findMany({
       where: (t, { eq: equals }) => equals(t.enterpriseId, enterpriseId),
       orderBy: (t, { asc }) => [asc(t.name)],
@@ -45,16 +54,20 @@ export class ActorsService {
     return rows.map(toActor);
   }
 
-  async findOne(id: string): Promise<Actor | undefined> {
+  // Scoped to the caller's enterprises (INV-16): an id from elsewhere reads
+  // as not found.
+  async findOne(principal: Principal, id: string): Promise<Actor | undefined> {
     const row = await this.db.query.actors.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, id),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(equals(t.id, id), inArray(t.enterpriseId, principal.enterpriseIds)),
       with: withLinks,
     });
     return row ? toActor(row) : undefined;
   }
 
-  async create(input: ActorInput): Promise<Actor> {
-    await this.validate(input);
+  async create(principal: Principal, input: ActorInput): Promise<Actor> {
+    assertCan(principal, 'model.write', input.enterpriseId);
+    await this.validate(input, input.enterpriseId);
     const [inserted] = await this.db
       .insert(schema.actors)
       .values({
@@ -67,16 +80,21 @@ export class ActorsService {
       .returning({ id: schema.actors.id });
 
     if (!inserted) throw new NotFoundException('Actor insert returned no row');
-    const created = await this.findOne(inserted.id);
+    const created = await this.findOne(principal, inserted.id);
     if (!created) throw new NotFoundException(`Actor ${inserted.id} not found after creation`);
     return created;
   }
 
   // enterpriseId is intentionally not updatable: rows never move between
-  // enterprises (see docs/VISION.md).
-  async update(id: string, input: ActorInput): Promise<Actor> {
-    await this.validate(input);
-    const [updated] = await this.db
+  // enterprises (see docs/VISION.md). The stored one, not the input's, is
+  // what the organization unit is checked against.
+  async update(principal: Principal, id: string, input: ActorInput): Promise<Actor> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) throw new NotFoundException(`Actor ${id} not found`);
+    assertCan(principal, 'model.write', existing.enterpriseId);
+    await this.validate(input, existing.enterpriseId);
+
+    await this.db
       .update(schema.actors)
       .set({
         kind: input.kind,
@@ -84,33 +102,39 @@ export class ActorsService {
         description: input.description ?? null,
         organizationUnitId: input.organizationUnitId ?? null,
       })
-      .where(eq(schema.actors.id, id))
-      .returning({ id: schema.actors.id });
+      .where(eq(schema.actors.id, id));
 
-    if (!updated) throw new NotFoundException(`Actor ${id} not found`);
-    const result = await this.findOne(id);
+    const result = await this.findOne(principal, id);
     if (!result) throw new NotFoundException(`Actor ${id} not found after update`);
     return result;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(principal: Principal, id: string): Promise<boolean> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) return false;
+    assertCan(principal, 'model.write', existing.enterpriseId);
     const [deleted] = await this.db
       .delete(schema.actors)
-      .where(eq(schema.actors.id, id))
+      .where(
+        and(eq(schema.actors.id, id), inArray(schema.actors.enterpriseId, principal.enterpriseIds)),
+      )
       .returning({ id: schema.actors.id });
     return Boolean(deleted);
   }
 
-  async link(input: CapabilityActorInput): Promise<Actor> {
+  async link(principal: Principal, input: CapabilityActorInput): Promise<Actor> {
     const capability = await this.db.query.businessCapabilities.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, input.capabilityId),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(equals(t.id, input.capabilityId), inArray(t.enterpriseId, principal.enterpriseIds)),
     });
     if (!capability) {
       throw new BadRequestException(`Business capability ${input.capabilityId} not found`);
     }
+    assertCan(principal, 'model.write', capability.enterpriseId);
 
     const actor = await this.db.query.actors.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, input.actorId),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(equals(t.id, input.actorId), inArray(t.enterpriseId, principal.enterpriseIds)),
     });
     if (!actor) throw new BadRequestException(`Actor ${input.actorId} not found`);
 
@@ -121,8 +145,8 @@ export class ActorsService {
     }
 
     // INV-1: half-open, so an interval that starts where it ends is empty.
-    if (input.validFrom && input.validTo && input.validFrom >= input.validTo) {
-      throw new BadRequestException('validFrom must be earlier than validTo');
+    if (!isHalfOpenInterval(input.validFrom, input.validTo)) {
+      throw new BadRequestException(INTERVAL_MESSAGE);
     }
 
     // INV-15: one open link per pair — close the existing one before opening
@@ -151,12 +175,20 @@ export class ActorsService {
       validTo: input.validTo ?? null,
     });
 
-    const result = await this.findOne(input.actorId);
+    const result = await this.findOne(principal, input.actorId);
     if (!result) throw new NotFoundException(`Actor ${input.actorId} not found`);
     return result;
   }
 
-  async unlink(linkId: string): Promise<boolean> {
+  // The link has no enterpriseId of its own; it is scoped through the actor.
+  async unlink(principal: Principal, linkId: string): Promise<boolean> {
+    const link = await this.db.query.capabilityActors.findFirst({
+      where: (t, { eq: equals }) => equals(t.id, linkId),
+      with: { actor: { columns: { enterpriseId: true } } },
+    });
+    if (!link || !principal.enterpriseIds.includes(link.actor.enterpriseId)) return false;
+    assertCan(principal, 'model.write', link.actor.enterpriseId);
+
     const [deleted] = await this.db
       .delete(schema.capabilityActors)
       .where(eq(schema.capabilityActors.id, linkId))
@@ -168,11 +200,11 @@ export class ActorsService {
   // to belong to the same enterprise. A team actor pointing at the unit that
   // already models it is the whole reason the column exists — without the
   // check, teams quietly end up modelled twice under two names.
-  private async validate(input: ActorInput): Promise<void> {
+  private async validate(input: ActorInput, enterpriseId: string): Promise<void> {
     if (!input.organizationUnitId) return;
 
-    if (input.kind !== 'team') {
-      throw new BadRequestException('organizationUnitId applies only to actors of kind "team"');
+    if (!organizationUnitAllowed(input.kind, input.organizationUnitId)) {
+      throw new BadRequestException(ORGANIZATION_UNIT_MESSAGE);
     }
 
     const unit = await this.db.query.organizationUnits.findFirst({
@@ -180,7 +212,7 @@ export class ActorsService {
     });
     if (!unit)
       throw new BadRequestException(`Organization unit ${input.organizationUnitId} not found`);
-    if (unit.enterpriseId !== input.enterpriseId) {
+    if (unit.enterpriseId !== enterpriseId) {
       throw new BadRequestException(
         'An actor and its organization unit must belong to the same enterprise',
       );

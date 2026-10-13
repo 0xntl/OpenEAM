@@ -76,19 +76,24 @@ export default function BpmnModeler({ xml, onSave }: BpmnModelerProps) {
   }, [onSave]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-end gap-3 border-b border-border px-4 py-2">
-        {error && <p className="text-xs text-destructive">{error}</p>}
-        {dirty && !error && <p className="text-xs text-muted-foreground">Unsaved changes</p>}
-        <Button onClick={handleSave} disabled={!dirty || saving}>
-          {saving ? 'Saving…' : 'Save diagram'}
-        </Button>
+    <div className="relative h-full min-h-0">
+      {/* Floating glass toolbar, top right — bpmn-js keeps its palette top
+          left, so the two never collide. Same treatment as the landscape
+          filter bar. */}
+      <div className="pointer-events-none absolute top-3 right-3 z-10 flex justify-end">
+        <div className="pointer-events-auto flex items-center gap-3 rounded-xl border border-border/70 bg-background/80 px-3 py-2 shadow-lg shadow-black/5 backdrop-blur-md dark:shadow-black/30">
+          {error && <p className="text-xs text-destructive">{error}</p>}
+          {dirty && !error && <p className="text-xs text-muted-foreground">Unsaved changes</p>}
+          <Button onClick={handleSave} disabled={!dirty || saving}>
+            {saving ? 'Saving…' : 'Save diagram'}
+          </Button>
+        </div>
       </div>
       {/* bpmn-js draws dark strokes on a transparent canvas, so the editing
           surface stays light in both themes for readability. In dark mode we
           use a soft grey panel rather than pure white to avoid a glaring box
           in the dark UI. */}
-      <div ref={containerRef} className="min-h-0 flex-1 bg-white dark:bg-neutral-300" />
+      <div ref={containerRef} className="h-full w-full bg-white dark:bg-neutral-300" />
     </div>
   );
 }

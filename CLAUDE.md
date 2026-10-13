@@ -10,9 +10,10 @@ Real, non-public enterprises (an employer's or client's actual architecture) som
 
 Run `pnpm lint` (repo-wide `biome check .`, per [CONTRIBUTING.md](CONTRIBUTING.md)) — not a scoped `biome check` against only the files touched in a change. Generated files (e.g. `packages/db/drizzle/meta/*.json`, written by drizzle-kit) can fail Biome's formatting without ever showing up in a per-file check.
 
-## Icon library
+## Icons: two kinds, two mechanisms
 
-`lucide-react` is the only icon library in this repo. Don't add another one (e.g. to satisfy a component library's default) — import from `lucide-react` or extend it instead. `@hugeicons/*` was removed for this reason; it duplicated icons already available in Lucide.
+- **UI icons** (navigation, buttons, status): `lucide-react`, imported by name. No second UI icon library — `@hugeicons/*` was removed for duplicating Lucide (D-7).
+- **Model icons** (what a user picks for a building block): Iconify ids stored as data, served by `/api/icons`, drawn via `components/icons/model-icon.tsx`. Never render one with `lucide-react` or an `icons[name]` lookup, never store SVG or a URL in `icon`, and never add an `@iconify-json/*` set without its prefix in `apps/api/src/icons/icon-id.ts` (D-22).
 
 ## Sidebar navigation is collapsed-icon-first
 
@@ -20,11 +21,11 @@ The sidebar defaults to collapsed/icon-only (`SidebarProvider defaultOpen={false
 
 ## Docs update order
 
-When a change touches more than one doc: [docs/VISION.md](docs/VISION.md) → [docs/USE-CASES.md](docs/USE-CASES.md) → [docs/USER-STORIES.md](docs/USER-STORIES.md) → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → [docs/DECISIONS.md](docs/DECISIONS.md) → [docs/GLOSSARY.md](docs/GLOSSARY.md) → [docs/BACKLOG.md](docs/BACKLOG.md) → [docs/IDEAS.md](docs/IDEAS.md) → `README.md`. Vision is the foundation everything else derives from or links back to; README summarizes the settled state last.
+When a change touches more than one doc: [docs/VISION.md](docs/VISION.md) → [docs/USE-CASES.md](docs/USE-CASES.md) → [docs/USER-STORIES.md](docs/USER-STORIES.md) → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → [docs/DATABASE.md](docs/DATABASE.md) → [docs/DECISIONS.md](docs/DECISIONS.md) → [docs/GLOSSARY.md](docs/GLOSSARY.md) → [docs/BACKLOG.md](docs/BACKLOG.md) → [docs/IDEAS.md](docs/IDEAS.md) → `README.md`. Vision is the foundation everything else derives from or links back to; README summarizes the settled state last.
 
 ## Read these before changing code
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the map: package layout, where the rules live, and the numbered invariants (INV-1 … INV-10) that the model would silently lie about if broken. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the EAM vocabulary as *this* codebase uses it — a term used loosely in a comment becomes a field name and then a label an architect mistrusts, so check a name against it before inventing one.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the map: package layout, where the rules live, and the numbered invariants (INV-1 … INV-17) that the model would silently lie about if broken. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the EAM vocabulary as *this* codebase uses it — a term used loosely in a comment becomes a field name and then a label an architect mistrusts, so check a name against it before inventing one.
 
 Before changing something that looks arbitrary, check [docs/DECISIONS.md](docs/DECISIONS.md) — several shapes here are deliberate and the reasoning is recorded. If you decide something worth recording, append an entry rather than editing an existing one.
 

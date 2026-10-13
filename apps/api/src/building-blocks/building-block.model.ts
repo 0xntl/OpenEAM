@@ -91,6 +91,9 @@ export abstract class BuildingBlock {
   @Field() enterpriseId!: string;
   @Field() name!: string;
   @Field(() => String, { nullable: true }) description?: string | null;
+  // An Iconify id such as "simple-icons:postgresql" or "lucide:database",
+  // drawn from the collections GET /api/icons serves (D-22).
+  @Field(() => String, { nullable: true }) icon?: string | null;
   @Field(() => LifecyclePhase) lifecyclePhase!: LifecyclePhase;
   @Field(() => String, { nullable: true }) validFrom?: string | null;
   @Field(() => String, { nullable: true }) validTo?: string | null;
@@ -123,6 +126,7 @@ export class BuildingBlockInput {
   @Field(() => BuildingBlockKind) kind!: BuildingBlockKind;
   @Field() name!: string;
   @Field(() => String, { nullable: true }) description?: string | null;
+  @Field(() => String, { nullable: true }) icon?: string | null;
   @Field(() => ArchitectureLevel, { nullable: true }) architectureLevel?: ArchitectureLevel | null;
   @Field(() => LifecyclePhase) lifecyclePhase!: LifecyclePhase;
   @Field(() => String, { nullable: true }) validFrom?: string | null;

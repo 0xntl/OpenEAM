@@ -6,13 +6,18 @@ import {
   Library,
   Map as MapIcon,
   Route,
+  ShieldCheck,
   Table2,
   Target,
   Users,
   Workflow,
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { Brand, BrandIcon } from './brand/brand';
+import { CommandPalette, CommandPaletteTrigger } from './command-palette';
 import { EnterpriseSwitcher } from './enterprise-switcher';
 import { ThemeToggle } from './theme-toggle';
+import { Button } from './ui/button';
 import {
   Sidebar,
   SidebarContent,
@@ -26,8 +31,29 @@ import {
   SidebarProvider,
   SidebarSeparator,
   SidebarTrigger,
+  useSidebar,
 } from './ui/sidebar';
 import { TooltipProvider } from './ui/tooltip';
+import { UserMenu } from './user-menu';
+
+// The collapsed sidebar's one control: the instance's icon, which opens the
+// menu. Replaces the panel icon rather than sitting next to it.
+function CollapsedBrandTrigger() {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <Button
+      data-sidebar="trigger"
+      variant="ghost"
+      size="icon-lg"
+      className="hidden group-data-[collapsible=icon]:inline-flex"
+      onClick={toggleSidebar}
+      title="Open the menu"
+    >
+      <BrandIcon />
+      <span className="sr-only">Open the menu</span>
+    </Button>
+  );
+}
 
 export function AppShell() {
   const isOverview = useRouterState({
@@ -64,17 +90,28 @@ export function AppShell() {
   const isDataExchange = useRouterState({
     select: (s) => s.location.pathname.startsWith('/data-exchange'),
   });
+  const isAdmin = useRouterState({
+    select: (s) => s.location.pathname.startsWith('/admin'),
+  });
+  const { isAdmin: canAdmin } = useAuth();
 
   return (
     <TooltipProvider delayDuration={200}>
       <SidebarProvider defaultOpen={false}>
         <Sidebar collapsible="icon">
           <SidebarHeader className="font-semibold text-base">
+            {/* Expanded: logo (or mark and name) beside the collapse trigger.
+                Collapsed, the primary state: the brand icon *is* the trigger,
+                one symbol that identifies the instance and opens the menu. */}
             <div className="flex items-center justify-between">
-              <span className="px-1 group-data-[collapsible=icon]:hidden">OpenEAM</span>
-              <SidebarTrigger size="icon-lg" />
+              <Brand className="px-1 group-data-[collapsible=icon]:hidden" />
+              <SidebarTrigger size="icon-lg" className="group-data-[collapsible=icon]:hidden" />
+              <CollapsedBrandTrigger />
             </div>
             <EnterpriseSwitcher />
+            <CommandPaletteTrigger
+              onOpen={() => window.dispatchEvent(new CustomEvent('openeam:palette'))}
+            />
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -215,15 +252,32 @@ export function AppShell() {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  {/* Instance administration: accounts, sign-up, access to
+                      enterprises. Only an instance admin sees the entry; the
+                      page itself refuses everyone else too. */}
+                  {canAdmin && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={isAdmin} tooltip="Administration">
+                        <Link to="/admin">
+                          <ShieldCheck strokeWidth={2} />
+                          <span className="group-data-[collapsible=icon]:hidden">
+                            Administration
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter>
             <ThemeToggle />
+            <UserMenu />
           </SidebarFooter>
         </Sidebar>
 
+        <CommandPalette />
         <div className="flex flex-1 flex-col min-h-screen">
           {/* No padding here — each page's own width class
               (contentWidthClassName/canvasWidthClassName/

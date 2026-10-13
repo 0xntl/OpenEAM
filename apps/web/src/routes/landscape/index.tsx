@@ -1,6 +1,6 @@
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useState } from 'react';
 import {
   EMPTY_LANDSCAPE_FILTERS,
@@ -8,8 +8,15 @@ import {
   type LandscapeFilterValues,
 } from '@/components/landscape/landscape-filters';
 import { contentWidthClassName, PageHeader } from '@/components/ui/page-header';
+import { TableSkeleton } from '@/components/ui/skeletons';
 import { useEnterprise } from '@/lib/enterprise';
-import type { ArchitectureDomain, ArchitectureLevel, OrganizationUnit } from '@/lib/entities';
+import type {
+  ArchitectureDomain,
+  ArchitectureLevel,
+  LifecyclePhase,
+  OrganizationUnit,
+} from '@/lib/entities';
+import { ARCHITECTURE_LEVEL_LABEL, LIFECYCLE_LABEL } from '@/lib/labels';
 
 const LANDSCAPE_QUERY = gql`
   query Landscape(
@@ -137,7 +144,7 @@ function LandscapeRoute() {
         />
       </div>
 
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {loading && !data && <TableSkeleton />}
       {error && <p className="text-sm text-destructive">Failed to load the landscape.</p>}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -157,9 +164,19 @@ function LandscapeRoute() {
               <tbody>
                 {(data?.architectureLandscape ?? []).map((block) => (
                   <tr key={block.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 font-medium text-foreground">{block.name}</td>
+                    <td className="px-3 py-2 font-medium text-foreground">
+                      <Link
+                        to="/building-blocks/$buildingBlockId"
+                        params={{ buildingBlockId: block.id }}
+                        className="hover:underline"
+                      >
+                        {block.name}
+                      </Link>
+                    </td>
                     <td className="px-3 py-2 text-muted-foreground">
-                      {block.architectureLevel ?? '—'}
+                      {block.architectureLevel
+                        ? ARCHITECTURE_LEVEL_LABEL[block.architectureLevel]
+                        : '—'}
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">
                       {block.realizedBy.length === 0 ? (
@@ -177,7 +194,8 @@ function LandscapeRoute() {
                                 }
                               >
                                 {solution?.name ?? r.solutionBuildingBlockId}
-                                {solution && ` (${solution.lifecyclePhase})`}
+                                {solution &&
+                                  ` (${LIFECYCLE_LABEL[solution.lifecyclePhase as LifecyclePhase]})`}
                               </span>
                             );
                           })}
@@ -213,8 +231,18 @@ function LandscapeRoute() {
               <tbody>
                 {(data?.solutionsLandscape ?? []).map((block) => (
                   <tr key={block.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-2 font-medium text-foreground">{block.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{block.lifecyclePhase}</td>
+                    <td className="px-3 py-2 font-medium text-foreground">
+                      <Link
+                        to="/building-blocks/$buildingBlockId"
+                        params={{ buildingBlockId: block.id }}
+                        className="hover:underline"
+                      >
+                        {block.name}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">
+                      {LIFECYCLE_LABEL[block.lifecyclePhase as LifecyclePhase]}
+                    </td>
                   </tr>
                 ))}
                 {data?.solutionsLandscape.length === 0 && (

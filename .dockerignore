@@ -1,0 +1,16 @@
+# What the container builds must never see: installed deps (the image installs
+# its own), build output, git history, env files, and private bundles.
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+examples/private
+docs
+*.md
+.vscode
+.idea

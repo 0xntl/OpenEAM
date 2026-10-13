@@ -9,16 +9,18 @@ description: How to launch and verify the OpenEAM app end-to-end (web + api + db
 
 - `pnpm dev` at the repo root builds `@openeam/db` then starts api (NestJS, dotenv from `.env`) and web (Vite) in parallel.
 - Web dev server: **http://localhost:3000** (`strictPort: true` — if the port is busy, a dev server is already running and serves the current working tree via HMR; verify against it instead of starting another).
-- API is proxied by Vite at `/graphql` and `/health`; needs Postgres per `DATABASE_URL` in `.env` (Docker Compose service).
+- API is proxied by Vite at `/graphql`, `/health` and `/api` (data exchange, icons, branding); needs Postgres per `DATABASE_URL` in `.env` (Docker Compose service).
 
 ## Drive the UI headlessly
 
-No Playwright browsers are installed. Use `playwright-core` with the system Edge instead (no download):
+No Playwright browsers are installed. Use `playwright-core` with a system Chromium-based browser instead (no download) — on this Linux box that is `/usr/bin/google-chrome-stable`; on Windows, `channel: 'msedge'`:
 
 ```js
 import { chromium } from 'playwright-core';
-const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const browser = await chromium.launch({ executablePath: '/usr/bin/google-chrome-stable', headless: true });
 ```
+
+Every route sits behind the sign-in gate. Sign in first (`#auth-email`, `#auth-password`, submit) — the dev DB needs an account; if there is none, the form offers sign-up and that first account becomes the instance admin (sees `/admin`). The sidebar is collapsed by default, so labels like the enterprise name are hidden until you click `[data-sidebar="trigger"]`.
 
 Install `playwright-core` in the scratchpad, not the repo.
 

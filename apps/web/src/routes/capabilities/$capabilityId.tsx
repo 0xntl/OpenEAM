@@ -8,14 +8,25 @@ import {
   DELETE_BUSINESS_CAPABILITY,
 } from '@/components/capabilities/capability-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   contentWidthClassName,
+  detailCardGridClassName,
+  detailDescriptionClassName,
+  detailFactsClassName,
   PageHeader,
   pageBackLinkClassName,
   TitledCard,
 } from '@/components/ui/page-header';
+import { DetailSkeleton } from '@/components/ui/skeletons';
+import { ACTOR_INVOLVEMENT_LABEL } from '@/lib/actor';
 import { CAPABILITY_DIRECTION_LABEL, CAPABILITY_DIRECTION_STYLE } from '@/lib/capability-direction';
+import { useConfirm } from '@/lib/confirm';
+import { WriteOnly } from '@/lib/enterprise';
 import type { BusinessCapabilityDetail, CapabilityResource } from '@/lib/entities';
+import { INFORMATION_USAGE_LABEL } from '@/lib/information-usage';
+import { BUILDING_BLOCK_KIND_LABEL, kindOf } from '@/lib/labels';
+import { toast } from '@/lib/toast';
 
 const BUSINESS_CAPABILITY_QUERY = gql`
   query BusinessCapability($id: String!) {
@@ -85,16 +96,12 @@ function ProcessLink({ id, label }: { id: string; label: string }) {
   );
 }
 
-function EmptyState({ label }: { label: string }) {
-  return <p className="text-xs text-muted-foreground italic">{label}</p>;
-}
-
 function ResourceItem({ resource }: { resource: CapabilityResource }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-xs text-foreground">
       <span>{resource.name}</span>
       <span className="shrink-0 rounded-full border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-        {resource.__typename === 'ArchitectureBuildingBlock' ? 'ABB' : 'SBB'}
+        {BUILDING_BLOCK_KIND_LABEL[kindOf(resource.__typename)]}
       </span>
     </div>
   );
@@ -132,17 +139,23 @@ function CapabilityDetail({
         }
         action={
           <>
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="destructive" size="sm" onClick={onDelete}>
-              Delete
-            </Button>
+            <WriteOnly>
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                Edit
+              </Button>
+            </WriteOnly>
+            <WriteOnly>
+              <Button variant="destructive" size="sm" onClick={onDelete}>
+                Delete
+              </Button>
+            </WriteOnly>
           </>
         }
       />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
+      {cap.description && <p className={detailDescriptionClassName}>{cap.description}</p>}
+
+      <div className={detailFactsClassName}>
         {cap.valueStreamStages.length > 0 ? (
           cap.valueStreamStages.map((link) => (
             <Link
@@ -155,17 +168,19 @@ function CapabilityDetail({
             </Link>
           ))
         ) : (
-          <p className="text-xs text-muted-foreground italic">Not part of any value stream yet</p>
+          <EmptyState label="Not part of any value stream yet" />
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className={detailCardGridClassName}>
         <TitledCard
           title="People"
           subtitle="Actors, stakeholders, business units or partners involved in delivering this capability"
         >
           {cap.actors.length > 0 ? (
-            cap.actors.map((a) => <Item key={a.id} label={a.name} tag={a.involvement} />)
+            cap.actors.map((a) => (
+              <Item key={a.id} label={a.name} tag={ACTOR_INVOLVEMENT_LABEL[a.involvement]} />
+            ))
           ) : (
             <EmptyState label="No people defined yet" />
           )}
@@ -187,7 +202,9 @@ function CapabilityDetail({
           subtitle="Business data, knowledge, and insight required or consumed"
         >
           {cap.information.length > 0 ? (
-            cap.information.map((i) => <Item key={i.id} label={i.name} tag={i.usage} />)
+            cap.information.map((i) => (
+              <Item key={i.id} label={i.name} tag={INFORMATION_USAGE_LABEL[i.usage]} />
+            ))
           ) : (
             <EmptyState label="No information defined yet" />
           )}
@@ -211,6 +228,7 @@ function CapabilityDetail({
 function CapabilityRoute() {
   const { capabilityId } = Route.useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { data, loading, error, refetch } = useQuery<BusinessCapabilityData>(
     BUSINESS_CAPABILITY_QUERY,
     { variables: { id: capabilityId } },
@@ -225,14 +243,30 @@ function CapabilityRoute() {
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this business capability?')) return;
+    if (
+      !(await confirm({
+        title: `Delete "${data?.businessCapability?.name ?? 'this capability'}"?`,
+        destructive: true,
+      }))
+    )
+      return;
     await deleteBusinessCapability({ variables: { id: capabilityId } });
+    toast.success('Deleted.');
     navigate({ to: '/capabilities' });
   };
 
-  if (loading) return <p className="px-6 py-8 text-sm text-muted-foreground">Loading…</p>;
+  if (loading)
+    return (
+      <div className={contentWidthClassName}>
+        <DetailSkeleton />
+      </div>
+    );
   if (error)
-    return <p className="px-6 py-8 text-sm text-destructive">Failed to load capability.</p>;
+    return (
+      <div className={contentWidthClassName}>
+        <p className="text-sm text-destructive">Failed to load capability.</p>
+      </div>
+    );
   if (!data?.businessCapability) throw notFound();
 
   return (

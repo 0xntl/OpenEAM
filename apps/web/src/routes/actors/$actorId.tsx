@@ -1,15 +1,20 @@
 import { gql } from '@apollo/client';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { ActorFormSheet, DELETE_ACTOR } from '@/components/actors/actor-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import {
   contentWidthClassName,
+  detailDescriptionClassName,
+  detailFactsClassName,
+  Fact,
   PageHeader,
   pageBackLinkClassName,
+  TitledCard,
 } from '@/components/ui/page-header';
 import {
   Select,
@@ -18,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DetailSkeleton } from '@/components/ui/skeletons';
 import {
   ACTOR_INVOLVEMENT_LABEL,
   ACTOR_INVOLVEMENT_STYLE,
@@ -25,8 +31,11 @@ import {
   ACTOR_KIND_LABEL,
   ACTOR_KIND_STYLE,
 } from '@/lib/actor';
-import { useEnterprise } from '@/lib/enterprise';
+import { useConfirm } from '@/lib/confirm';
+import { useEnterprise, WriteOnly } from '@/lib/enterprise';
 import type { ActorCapabilityLink, ActorDetail, ActorInvolvement } from '@/lib/entities';
+import { formatValidity } from '@/lib/labels';
+import { toast } from '@/lib/toast';
 
 const ACTOR_QUERY = gql`
   query Actor($id: String!) {
@@ -99,11 +108,18 @@ function LinkRow({ link, onRemove }: { link: ActorCapabilityLink; onRemove: () =
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <span className="font-mono text-[10px] text-muted-foreground">
-          {link.validFrom ?? '…'} – {link.validTo ?? '…'}
+          {formatValidity(link.validFrom, link.validTo)}
         </span>
-        <Button variant="ghost" size="sm" onClick={onRemove} className="h-7 px-2">
-          <Trash2 className="size-3" />
-        </Button>
+        <WriteOnly>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onRemove}
+            aria-label={`Remove link to ${link.capabilityName}`}
+          >
+            <Trash2 />
+          </Button>
+        </WriteOnly>
       </div>
     </div>
   );
@@ -112,6 +128,7 @@ function LinkRow({ link, onRemove }: { link: ActorCapabilityLink; onRemove: () =
 function ActorDetailRoute() {
   const { actorId } = Route.useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { enterprise } = useEnterprise();
   const { data, loading, error, refetch } = useQuery<ActorData>(ACTOR_QUERY, {
     variables: { id: actorId },
@@ -141,17 +158,18 @@ function ActorDetailRoute() {
   if (loading) {
     return (
       <div className={contentWidthClassName}>
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <DetailSkeleton />
       </div>
     );
   }
-  if (error || !actor) {
+  if (error) {
     return (
       <div className={contentWidthClassName}>
-        <p className="text-sm text-destructive">Actor not found.</p>
+        <p className="text-sm text-destructive">Failed to load actor.</p>
       </div>
     );
   }
+  if (!actor) throw notFound();
 
   // Closed links are history. Separating them is the whole point of carrying
   // validity intervals — showing them in one undifferentiated list would make
@@ -182,8 +200,9 @@ function ActorDetailRoute() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete the actor "${actor.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${actor.name}"?`, destructive: true }))) return;
     await deleteActor({ variables: { id: actor.id } });
+    toast.success(`"${actor.name}" deleted.`);
     navigate({ to: '/actors' });
   };
 
@@ -195,7 +214,7 @@ function ActorDetailRoute() {
       <PageHeader
         back={
           <Link to="/actors" className={pageBackLinkClassName}>
-            <ChevronLeft className="size-3" /> Actors
+            <ChevronLeft className="size-3.5" /> Actors
           </Link>
         }
         title={
@@ -209,100 +228,103 @@ function ActorDetailRoute() {
           </span>
         }
         action={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setSheetOpen(true)}>
-              Edit
-            </Button>
-            <Button variant="ghost" className="text-destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </div>
+          <>
+            <WriteOnly>
+              <Button variant="ghost" size="sm" onClick={() => setSheetOpen(true)}>
+                Edit
+              </Button>
+            </WriteOnly>
+            <WriteOnly>
+              <Button variant="destructive" size="sm" onClick={handleDelete}>
+                Delete
+              </Button>
+            </WriteOnly>
+          </>
         }
       />
 
+      {actor.description && <p className={detailDescriptionClassName}>{actor.description}</p>}
+
       {actor.organizationUnitName && (
-        <p className="text-sm text-muted-foreground">
-          Models the organization unit <strong>{actor.organizationUnitName}</strong>.
-        </p>
+        <div className={detailFactsClassName}>
+          <Fact label="Models unit" value={actor.organizationUnitName} />
+        </div>
       )}
-      {actor.description && <p className="text-sm text-muted-foreground">{actor.description}</p>}
 
-      <section className="flex flex-col gap-3 pt-4">
-        <h2 className="text-sm font-medium">Capabilities</h2>
-        <p className="text-xs text-muted-foreground">
-          What this actor is involved in, and in what capacity.
-        </p>
-
+      <TitledCard
+        title="Capabilities"
+        subtitle="What this actor is involved in, and in what capacity"
+      >
         {current.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {current.map((link) => (
-              <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
-            ))}
-          </div>
+          current.map((link) => (
+            <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
+          ))
         ) : (
-          <p className="text-xs italic text-muted-foreground">Not linked to any capability yet.</p>
+          <EmptyState label="Not linked to any capability yet" hint="add one below" />
         )}
 
-        <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
-          <label
-            htmlFor="link-capability"
-            className="flex min-w-48 flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            Capability
-            <Select value={capabilityId} onValueChange={setCapabilityId}>
-              <SelectTrigger id="link-capability" className="w-full">
-                <SelectValue placeholder="Choose…" />
-              </SelectTrigger>
-              <SelectContent>
-                {available.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-
-          <label
-            htmlFor="link-involvement"
-            className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            Involvement
-            <Select
-              value={involvement}
-              onValueChange={(v) => setInvolvement(v as ActorInvolvement)}
+        <WriteOnly>
+          <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
+            <label
+              htmlFor="link-capability"
+              className="flex min-w-48 flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground"
             >
-              <SelectTrigger id="link-involvement" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ACTOR_INVOLVEMENTS.map((i) => (
-                  <SelectItem key={i} value={i}>
-                    {ACTOR_INVOLVEMENT_LABEL[i]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+              Capability
+              <Select value={capabilityId} onValueChange={setCapabilityId}>
+                <SelectTrigger id="link-capability" className="w-full">
+                  <SelectValue placeholder="Choose…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {available.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
 
-          <label
-            htmlFor="link-valid-from"
-            className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            From
-            <Input
-              id="link-valid-from"
-              type="date"
-              className="w-40"
-              value={validFrom}
-              onChange={(e) => setValidFrom(e.target.value)}
-            />
-          </label>
+            <label
+              htmlFor="link-involvement"
+              className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+            >
+              Involvement
+              <Select
+                value={involvement}
+                onValueChange={(v) => setInvolvement(v as ActorInvolvement)}
+              >
+                <SelectTrigger id="link-involvement" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTOR_INVOLVEMENTS.map((i) => (
+                    <SelectItem key={i} value={i}>
+                      {ACTOR_INVOLVEMENT_LABEL[i]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
 
-          <Button onClick={handleLink} disabled={!capabilityId}>
-            Add
-          </Button>
-        </div>
+            <label
+              htmlFor="link-valid-from"
+              className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+            >
+              From
+              <Input
+                id="link-valid-from"
+                type="date"
+                className="w-40"
+                value={validFrom}
+                onChange={(e) => setValidFrom(e.target.value)}
+              />
+            </label>
+
+            <Button onClick={handleLink} disabled={!capabilityId}>
+              Add
+            </Button>
+          </div>
+        </WriteOnly>
 
         {linkError && <p className="text-sm text-destructive">{linkError.message}</p>}
 
@@ -311,14 +333,14 @@ function ActorDetailRoute() {
             <summary className="cursor-pointer text-xs text-muted-foreground">
               Ended ({ended.length})
             </summary>
-            <div className="flex flex-col gap-2 pt-2 opacity-60">
+            <div className="flex flex-col gap-1.5 pt-2 opacity-60">
               {ended.map((link) => (
                 <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
               ))}
             </div>
           </details>
         )}
-      </section>
+      </TitledCard>
 
       {enterprise && (
         <ActorFormSheet

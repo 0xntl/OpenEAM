@@ -14,6 +14,7 @@ import InteractionEventsModule from 'diagram-js/lib/features/interaction-events'
 import MoveCanvasModule from 'diagram-js/lib/navigation/movecanvas';
 import ZoomScrollModule from 'diagram-js/lib/navigation/zoomscroll';
 import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js';
+import { preloadIcons } from '@/lib/icons';
 import LandscapeRendererModule, { ensureArrowMarker } from './landscape-renderer';
 
 export interface DiagramNode {
@@ -23,6 +24,9 @@ export interface DiagramNode {
   // Name of the block's primary (first) architecture domain — used to pick
   // a domain color/shape in the renderer. Undefined if no domain assigned.
   domainName?: string;
+  // Iconify id of the block's model icon (see lib/icons.ts), drawn beside
+  // the label. Undefined when none is set.
+  icon?: string;
 }
 
 export type DiagramEdgeKind = 'depends_on' | 'data_flow' | 'hosted_on';
@@ -311,7 +315,12 @@ export async function layoutAndRender(
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const edgeById = new Map(edges.map((e) => [e.id, e]));
 
-  const layoutRoot = await computeLayout(nodes, edges);
+  // The renderer draws synchronously, so the icons it will need are fetched
+  // while elk computes the layout; a missing or slow icon never blocks it.
+  const [layoutRoot] = await Promise.all([
+    computeLayout(nodes, edges),
+    preloadIcons(nodes.map((n) => n.icon)),
+  ]);
 
   const diagram = new Diagram({
     canvas: { container },

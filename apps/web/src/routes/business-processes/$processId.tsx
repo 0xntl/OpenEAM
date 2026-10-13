@@ -3,18 +3,26 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
+import { BrandLoader } from '@/components/brand/brand';
 import {
   DELETE_BUSINESS_PROCESS,
   ProcessFormSheet,
 } from '@/components/business-processes/process-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   contentWidthClassName,
+  detailCardGridClassName,
+  detailDescriptionClassName,
   PageHeader,
   pageBackLinkClassName,
   TitledCard,
 } from '@/components/ui/page-header';
+import { DetailSkeleton } from '@/components/ui/skeletons';
+import { useConfirm } from '@/lib/confirm';
+import { WriteOnly } from '@/lib/enterprise';
 import type { BusinessProcess, NamedRef } from '@/lib/entities';
+import { toast } from '@/lib/toast';
 
 // bpmn-js is heavy; only load it when a diagram is actually shown.
 const BpmnViewer = lazy(() => import('@/components/bpmn/bpmn-viewer'));
@@ -77,10 +85,6 @@ function Item({ label }: { label: string }) {
   );
 }
 
-function EmptyState({ label }: { label: string }) {
-  return <p className="text-xs text-muted-foreground italic">{label}</p>;
-}
-
 function BusinessProcessDetail({
   process,
   cap,
@@ -104,42 +108,53 @@ function BusinessProcessDetail({
         }
         action={
           <>
-            <Button variant="ghost" size="sm" onClick={onEdit}>
-              Edit
-            </Button>
-            <Button variant="destructive" size="sm" onClick={onDelete}>
-              Delete
-            </Button>
+            <WriteOnly>
+              <Button variant="ghost" size="sm" onClick={onEdit}>
+                Edit
+              </Button>
+            </WriteOnly>
+            <WriteOnly>
+              <Button variant="destructive" size="sm" onClick={onDelete}>
+                Delete
+              </Button>
+            </WriteOnly>
           </>
         }
       />
 
-      <div className="mb-4 rounded-xl border border-border bg-card p-5 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Process Flow</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              BPMN diagram of this process; its tasks define the steps below
-            </p>
-          </div>
-          <Button asChild variant="outline">
-            <Link to="/business-processes/$processId/model" params={{ processId: process.id }}>
-              {process.bpmnXml ? 'Edit diagram' : 'Create diagram'}
-            </Link>
-          </Button>
-        </div>
-        {process.bpmnXml ? (
-          <Suspense
-            fallback={<p className="text-xs text-muted-foreground italic">Loading diagram…</p>}
-          >
-            <BpmnViewer xml={process.bpmnXml} />
-          </Suspense>
-        ) : (
-          <EmptyState label="No diagram modeled yet" />
-        )}
+      {process.description && <p className={detailDescriptionClassName}>{process.description}</p>}
+
+      <div className="mb-4">
+        <TitledCard
+          title="Process flow"
+          subtitle="BPMN diagram of this process; its tasks define the steps below"
+          action={
+            <WriteOnly>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/business-processes/$processId/model" params={{ processId: process.id }}>
+                  {process.bpmnXml ? 'Edit diagram' : 'Create diagram'}
+                </Link>
+              </Button>
+            </WriteOnly>
+          }
+        >
+          {process.bpmnXml ? (
+            <Suspense
+              fallback={
+                <div className="flex h-40 items-center justify-center">
+                  <BrandLoader label="Loading the diagram" />
+                </div>
+              }
+            >
+              <BpmnViewer xml={process.bpmnXml} />
+            </Suspense>
+          ) : (
+            <EmptyState label="No diagram modeled yet" hint="create one with the button above" />
+          )}
+        </TitledCard>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className={detailCardGridClassName}>
         <TitledCard
           title="Business Capability"
           subtitle="The business capability this process contributes to"
@@ -188,6 +203,7 @@ function BusinessProcessDetail({
 function BusinessProcessRoute() {
   const { processId } = Route.useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { data, loading, error, refetch } = useQuery<BusinessProcessData>(BUSINESS_PROCESS_QUERY, {
     variables: { id: processId },
   });
@@ -213,13 +229,30 @@ function BusinessProcessRoute() {
   });
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this business process?')) return;
+    if (
+      !(await confirm({
+        title: `Delete "${data?.businessProcess?.name ?? 'this process'}"?`,
+        destructive: true,
+      }))
+    )
+      return;
     await deleteBusinessProcess({ variables: { id: processId } });
+    toast.success('Deleted.');
     navigate({ to: '/business-processes' });
   };
 
-  if (loading) return <p className="px-6 py-8 text-sm text-muted-foreground">Loading…</p>;
-  if (error) return <p className="px-6 py-8 text-sm text-destructive">Failed to load process.</p>;
+  if (loading)
+    return (
+      <div className={contentWidthClassName}>
+        <DetailSkeleton />
+      </div>
+    );
+  if (error)
+    return (
+      <div className={contentWidthClassName}>
+        <p className="text-sm text-destructive">Failed to load process.</p>
+      </div>
+    );
   if (!data?.businessProcess) throw notFound();
 
   return (

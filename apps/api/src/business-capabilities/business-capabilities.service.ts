@@ -1,7 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Database } from '@openeam/db';
-import { eq, schema } from '@openeam/db';
+import { and, eq, inArray, schema } from '@openeam/db';
 import type { ActorInvolvement, ActorKind } from '../actors/actor.model';
+import { assertCan } from '../auth/policy';
+import { assertEnterpriseAccess, type Principal } from '../auth/principal';
 import type { MappedBuildingBlock } from '../building-blocks/building-blocks.service';
 import { toBuildingBlock, withAllLinks } from '../building-blocks/building-blocks.service';
 import type { BusinessProcess } from '../business-processes/business-process.model';
@@ -31,7 +33,8 @@ export interface BusinessCapabilityRow {
 export class BusinessCapabilitiesService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async findAll(enterpriseId: string): Promise<BusinessCapabilityRow[]> {
+  async findAll(principal: Principal, enterpriseId: string): Promise<BusinessCapabilityRow[]> {
+    assertEnterpriseAccess(principal, enterpriseId);
     const rows = await this.db.query.businessCapabilities.findMany({
       where: (t, { eq }) => eq(t.enterpriseId, enterpriseId),
       with: {
@@ -47,9 +50,11 @@ export class BusinessCapabilitiesService {
     return rows.map(toCapabilityRow);
   }
 
-  async findOne(id: string): Promise<BusinessCapabilityRow | undefined> {
+  // Scoped to the caller's enterprises (INV-16).
+  async findOne(principal: Principal, id: string): Promise<BusinessCapabilityRow | undefined> {
     const row = await this.db.query.businessCapabilities.findFirst({
-      where: (t, { eq }) => eq(t.id, id),
+      where: (t, { and, eq, inArray }) =>
+        and(eq(t.id, id), inArray(t.enterpriseId, principal.enterpriseIds)),
       with: {
         businessProcesses: {
           with: { steps: { orderBy: (t, { asc }) => [asc(t.position)] } },
@@ -63,7 +68,11 @@ export class BusinessCapabilitiesService {
     return row ? toCapabilityRow(row) : undefined;
   }
 
-  async create(input: BusinessCapabilityInput): Promise<BusinessCapabilityRow> {
+  async create(
+    principal: Principal,
+    input: BusinessCapabilityInput,
+  ): Promise<BusinessCapabilityRow> {
+    assertCan(principal, 'model.write', input.enterpriseId);
     const [inserted] = await this.db
       .insert(schema.businessCapabilities)
       .values({
@@ -75,7 +84,7 @@ export class BusinessCapabilitiesService {
       .returning({ id: schema.businessCapabilities.id });
 
     if (!inserted) throw new NotFoundException('Business capability insert returned no row');
-    const created = await this.findOne(inserted.id);
+    const created = await this.findOne(principal, inserted.id);
     if (!created) {
       throw new NotFoundException(`Business capability ${inserted.id} not found after creation`);
     }
@@ -84,7 +93,12 @@ export class BusinessCapabilitiesService {
 
   // enterpriseId is intentionally not updatable: entities never move between
   // enterprises (see docs/VISION.md — models are owned by exactly one scope).
-  async update(id: string, input: BusinessCapabilityInput): Promise<BusinessCapabilityRow> {
+  async update(
+    principal: Principal,
+    id: string,
+    input: BusinessCapabilityInput,
+  ): Promise<BusinessCapabilityRow> {
+    await this.requireWritable(principal, id);
     const [updated] = await this.db
       .update(schema.businessCapabilities)
       .set({
@@ -92,24 +106,51 @@ export class BusinessCapabilitiesService {
         description: input.description ?? null,
         direction: input.direction ?? null,
       })
-      .where(eq(schema.businessCapabilities.id, id))
+      .where(
+        and(
+          eq(schema.businessCapabilities.id, id),
+          inArray(schema.businessCapabilities.enterpriseId, principal.enterpriseIds),
+        ),
+      )
       .returning({ id: schema.businessCapabilities.id });
 
     if (!updated) throw new NotFoundException(`Business capability ${id} not found`);
-    const result = await this.findOne(id);
+    const result = await this.findOne(principal, id);
     if (!result) {
       throw new NotFoundException(`Business capability ${id} not found after update`);
     }
     return result;
   }
 
-  async delete(id: string): Promise<boolean> {
+  private requireWritable(principal: Principal, id: string) {
+    return requireWritableCapability(this.db, principal, id);
+  }
+
+  async delete(principal: Principal, id: string): Promise<boolean> {
+    await this.requireWritable(principal, id);
     const [deleted] = await this.db
       .delete(schema.businessCapabilities)
-      .where(eq(schema.businessCapabilities.id, id))
+      .where(
+        and(
+          eq(schema.businessCapabilities.id, id),
+          inArray(schema.businessCapabilities.enterpriseId, principal.enterpriseIds),
+        ),
+      )
       .returning({ id: schema.businessCapabilities.id });
     return Boolean(deleted);
   }
+}
+
+// Scoped existence check plus the write permission, without loading the
+// capability's whole graph.
+async function requireWritableCapability(db: Database, principal: Principal, id: string) {
+  const row = await db.query.businessCapabilities.findFirst({
+    where: (t, { and, eq, inArray }) =>
+      and(eq(t.id, id), inArray(t.enterpriseId, principal.enterpriseIds)),
+    columns: { enterpriseId: true },
+  });
+  if (!row) throw new NotFoundException(`Business capability ${id} not found`);
+  assertCan(principal, 'model.write', row.enterpriseId);
 }
 
 function toCapabilityRow(row: {

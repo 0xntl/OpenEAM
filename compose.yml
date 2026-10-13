@@ -1,5 +1,11 @@
-# Docker Compose for local development. Currently runs only Postgres; the apps
-# run via `pnpm dev`. App containers will be added back later (see docs/IDEAS.md).
+# Docker Compose. Two ways to use it:
+#
+#   docker compose up -d                 Postgres only; the apps run via `pnpm dev`.
+#   docker compose --profile app up -d   Postgres + API + web: the self-hosted
+#                                        instance, on http://localhost:${OPENEAM_PORT:-8080}.
+#
+# The `app` profile keeps the containers out of the default `up`, so a
+# developer's `pnpm dev` on ports 3000/4000 never collides with them.
 name: openeam
 
 services:
@@ -19,6 +25,38 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    profiles: [app]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER:-openeam}:${POSTGRES_PASSWORD:-openeam}@postgres:5432/${POSTGRES_DB:-openeam}
+      # Only matters for cross-origin callers; the web container proxies
+      # same-origin. Set to the public URL when something else calls the API.
+      WEB_ORIGIN: ${OPENEAM_ORIGIN:-http://localhost:8080}
+      AUTH_ALLOW_SIGNUP: ${AUTH_ALLOW_SIGNUP:-false}
+      # One proxy (the web container's nginx) in front of the API.
+      TRUST_PROXY: 1
+      # Turn on once the instance is served over HTTPS.
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    profiles: [app]
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${OPENEAM_PORT:-8080}:80"
 
 volumes:
   postgres-data:

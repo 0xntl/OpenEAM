@@ -1,12 +1,14 @@
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { Pencil } from 'lucide-react';
+import { Library, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { InformationObjectFormSheet } from '@/components/information-objects/information-object-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyCard } from '@/components/ui/empty-card';
 import { contentWidthClassName, PageHeader } from '@/components/ui/page-header';
-import { useEnterprise } from '@/lib/enterprise';
+import { ListSkeleton } from '@/components/ui/skeletons';
+import { useEnterprise, WriteOnly } from '@/lib/enterprise';
 import type { InformationObjectSummary } from '@/lib/entities';
 
 const INFORMATION_OBJECTS_QUERY = gql`
@@ -41,7 +43,7 @@ function InformationObjectCard({
   const owner = open.find((c) => c.usage === 'OWNS');
 
   return (
-    <div className="group relative flex flex-col gap-2 rounded-lg border border-border bg-card p-4 transition-colors hover:border-foreground/20">
+    <div className="group relative flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md">
       <Link
         to="/information-objects/$informationObjectId"
         params={{ informationObjectId: info.id }}
@@ -70,14 +72,17 @@ function InformationObjectCard({
         </span>
       </p>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onEdit}
-        className="absolute right-2 top-2 h-7 px-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-      >
-        <Pencil className="size-3" /> Edit
-      </Button>
+      <WriteOnly>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onEdit}
+          className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        >
+          <Pencil strokeWidth={2} />
+          <span className="sr-only">Edit</span>
+        </Button>
+      </WriteOnly>
     </div>
   );
 }
@@ -114,9 +119,11 @@ function InformationObjectsIndexRoute() {
       <PageHeader
         title="Information"
         action={
-          <Button onClick={openCreate} disabled={!enterprise}>
-            New information object
-          </Button>
+          <WriteOnly>
+            <Button onClick={openCreate} disabled={!enterprise}>
+              New information object
+            </Button>
+          </WriteOnly>
         }
       />
 
@@ -133,7 +140,7 @@ function InformationObjectsIndexRoute() {
       {!enterprise && !loading && (
         <p className="text-sm text-muted-foreground">Create an enterprise to get started.</p>
       )}
-      {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {loading && !data && <ListSkeleton />}
       {error && <p className="text-sm text-destructive">Failed to load information objects.</p>}
 
       <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -143,10 +150,19 @@ function InformationObjectsIndexRoute() {
       </div>
 
       {!loading && objects.length === 0 && enterprise && (
-        <p className="text-sm text-muted-foreground">
-          No information objects yet. Start with the things people argue about owning — a claim, a
-          customer record, an audit trail.
-        </p>
+        <EmptyCard
+          className="col-span-full"
+          icon={Library}
+          title="No information objects yet"
+          description="What the enterprise knows about, in business language. Start with the things people argue about owning — a claim, a customer record, an audit trail."
+          action={
+            <WriteOnly>
+              <Button onClick={openCreate} disabled={!enterprise}>
+                New information object
+              </Button>
+            </WriteOnly>
+          }
+        />
       )}
 
       {enterprise && (

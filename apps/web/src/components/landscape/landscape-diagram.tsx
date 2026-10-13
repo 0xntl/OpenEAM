@@ -104,6 +104,9 @@ export default function LandscapeDiagram({ nodes, edges, onNodeClick }: Landscap
         diagram = d;
 
         const canvas = d.get('canvas') as CanvasApi;
+        // Show the whole landscape, however large; a fixed 1:1 scale clipped
+        // anything past the first screen.
+        canvas.zoom('fit-viewport');
         const eventBus = d.get('eventBus') as EventBusApi;
         const elementRegistry = d.get('elementRegistry') as ElementRegistryApi;
 

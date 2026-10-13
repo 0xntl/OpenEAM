@@ -1,6 +1,8 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Database, Transaction } from '@openeam/db';
-import { eq, schema } from '@openeam/db';
+import { and, eq, inArray, schema } from '@openeam/db';
+import { assertCan } from '../auth/policy';
+import { assertEnterpriseAccess, type Principal } from '../auth/principal';
 import { DATABASE } from '../db.module';
 import type { ValueStream, ValueStreamInput } from './value-stream.model';
 
@@ -66,7 +68,8 @@ function toValueStream(row: ValueStreamRow): ValueStream {
 export class ValueStreamsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async findAll(enterpriseId: string): Promise<ValueStream[]> {
+  async findAll(principal: Principal, enterpriseId: string): Promise<ValueStream[]> {
+    assertEnterpriseAccess(principal, enterpriseId);
     const rows = await this.db.query.valueStreams.findMany({
       where: (t, { eq }) => eq(t.enterpriseId, enterpriseId),
       with: {
@@ -79,9 +82,11 @@ export class ValueStreamsService {
     return rows.map(toValueStream);
   }
 
-  async findOne(id: string): Promise<ValueStream | undefined> {
+  // Scoped to the caller's enterprises (INV-16).
+  async findOne(principal: Principal, id: string): Promise<ValueStream | undefined> {
     const row = await this.db.query.valueStreams.findFirst({
-      where: (t, { eq }) => eq(t.id, id),
+      where: (t, { and, eq, inArray }) =>
+        and(eq(t.id, id), inArray(t.enterpriseId, principal.enterpriseIds)),
       with: {
         stages: {
           orderBy: (t, { asc }) => [asc(t.position)],
@@ -92,7 +97,9 @@ export class ValueStreamsService {
     return row ? toValueStream(row) : undefined;
   }
 
-  async create(input: ValueStreamInput): Promise<ValueStream> {
+  async create(principal: Principal, input: ValueStreamInput): Promise<ValueStream> {
+    assertCan(principal, 'model.write', input.enterpriseId);
+    await this.validateCapabilities(input, input.enterpriseId);
     const id = await this.db.transaction(async (tx) => {
       const [inserted] = await tx
         .insert(schema.valueStreams)
@@ -109,20 +116,22 @@ export class ValueStreamsService {
       return inserted.id;
     });
 
-    const created = await this.findOne(id);
+    const created = await this.findOne(principal, id);
     if (!created) throw new NotFoundException(`Value stream ${id} not found after creation`);
     return created;
   }
 
-  async update(id: string, input: ValueStreamInput): Promise<ValueStream> {
+  async update(principal: Principal, id: string, input: ValueStreamInput): Promise<ValueStream> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) throw new NotFoundException(`Value stream ${id} not found`);
+    assertCan(principal, 'model.write', existing.enterpriseId);
+    await this.validateCapabilities(input, existing.enterpriseId);
+
     await this.db.transaction(async (tx) => {
-      const [updated] = await tx
+      await tx
         .update(schema.valueStreams)
         .set({ name: input.name, description: input.description ?? null })
-        .where(eq(schema.valueStreams.id, id))
-        .returning({ id: schema.valueStreams.id });
-
-      if (!updated) throw new NotFoundException(`Value stream ${id} not found`);
+        .where(eq(schema.valueStreams.id, id));
 
       // Full replace of stages/links rather than diffing them against the
       // existing set — simplest correct approach for a small ordered list,
@@ -133,16 +142,38 @@ export class ValueStreamsService {
       await insertStages(tx, id, input.stages);
     });
 
-    const updated = await this.findOne(id);
+    const updated = await this.findOne(principal, id);
     if (!updated) throw new NotFoundException(`Value stream ${id} not found after update`);
     return updated;
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(principal: Principal, id: string): Promise<boolean> {
+    const existing = await this.findOne(principal, id);
+    if (!existing) return false;
+    assertCan(principal, 'model.write', existing.enterpriseId);
     const [deleted] = await this.db
       .delete(schema.valueStreams)
-      .where(eq(schema.valueStreams.id, id))
+      .where(
+        and(
+          eq(schema.valueStreams.id, id),
+          inArray(schema.valueStreams.enterpriseId, principal.enterpriseIds),
+        ),
+      )
       .returning({ id: schema.valueStreams.id });
     return Boolean(deleted);
+  }
+
+  // INV-9: every capability a stage points at belongs to the value stream's
+  // own enterprise.
+  private async validateCapabilities(input: ValueStreamInput, enterpriseId: string) {
+    const ids = [...new Set(input.stages.flatMap((stage) => stage.capabilityIds))];
+    if (ids.length === 0) return;
+    const found = await this.db.query.businessCapabilities.findMany({
+      where: (t, { and, eq, inArray }) => and(inArray(t.id, ids), eq(t.enterpriseId, enterpriseId)),
+      columns: { id: true },
+    });
+    if (found.length !== ids.length) {
+      throw new BadRequestException('Every capability must belong to this enterprise');
+    }
   }
 }

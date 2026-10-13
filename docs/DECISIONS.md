@@ -265,3 +265,293 @@ for recognisability alone, or if `performs` is visibly doing two jobs.
 **What this unblocks:** the same entity is what building-block ownership needs
 (US-1.1) — an actor can carry ownership of a building block later without a second
 table. It was deliberately built so that link can be added rather than migrated to.
+
+---
+
+## D-15 · Local accounts with server-side sessions, membership as the access model
+
+**Decided:** authentication is built in: a `users` table (email, display name,
+scrypt password hash), a `sessions` table holding the SHA-256 of a random token
+that lives in an httpOnly cookie (or a bearer header for scripts), and an
+`enterprise_members` table. Membership of an enterprise is the entire access
+model (INV-16): every member can do everything in it, a non-member sees nothing
+of it.
+
+**Why not an identity provider now:** [IDEAS.md](IDEAS.md) had Keycloak pencilled
+in. For a self-hosted tool, "run a second server to log in to the first" is the
+wrong first step; a self-hoster expects `docker compose up` and a sign-up form.
+Local accounts need no new container, no secret to rotate (sessions are random
+tokens, not signed), and scrypt is in Node's standard library. OIDC can be added
+as an *additional* way to sign in later; nothing here precludes it.
+
+**Why server-side sessions, not JWTs:** sign-out and revocation are a row delete;
+a database dump contains no live credential; one indexed lookup per request is
+cheap at this scale.
+
+**Why membership and not roles:** roles are a product feature (US-7.3) and would
+be a column on `enterprise_members`, not a new table. Shipping the boundary first
+and the gradations later keeps the access model explainable in one sentence.
+
+**Two deliberate asymmetries:** public sign-up is closed by default but the
+*first* account can always be created, and that account inherits every enterprise
+already in the database — the upgrade path for an instance modelled before
+accounts existed. And any member may add or remove any other, because there is
+no owner yet; the only thing the API refuses is removing the last member, which
+would strand the enterprise.
+
+**Revisit when:** a deployment needs SSO (add OIDC alongside), or the first
+"viewer who must not edit" appears (add roles).
+
+---
+
+## D-16 · The importer validates the whole bundle; it does not replay it through the services
+
+**Decided:** `POST /api/data-exchange/import` keeps writing rows directly
+inside one transaction, but only after `data-bundle.validator.ts` has checked
+the entire bundle against the same invariants the services enforce, using the
+same functions (`common/invariants.ts`). Id collisions with other enterprises
+(INV-10) are checked inside the transaction, after the bundle's own enterprises
+are deleted and before anything is inserted.
+
+**Why not route the import through `create()` calls:** a bundle is a snapshot —
+ids, timestamps and closed historical rows included. The services generate ids
+and timestamps and refuse closed links on creation; replaying a bundle through
+them would produce a model with different ids (breaking every bundle that
+references it) and no history. Validating up front keeps the restore path
+byte-faithful and still refuses what the services would refuse.
+
+**Why validate before the transaction rather than catch database errors:**
+Postgres would reject only what its constraints cover (foreign keys, duplicate
+keys), one error at a time, as a 500. The validator covers the invariants the
+schema cannot express — same-enterprise references, one open link per pair,
+level-only-for-ABBs — and lists every violation with table and id in one
+response.
+
+**The security reason this is not optional:** before this, a bundle could carry
+a row tagged with *another* enterprise's id, or a link to another enterprise's
+row, and the importer would write it there. With accounts and membership
+(D-15) that is a cross-tenant write by any signed-in user. The "every row and
+reference stays inside the bundle's own enterprises" rule is what closes it.
+
+**Revisit when:** bundles grow past what one request validates comfortably in
+memory (then stream and validate per enterprise), or a merge-import is wanted
+(then the rules move to a diff, not a snapshot).
+
+---
+
+## D-17 · The first account is the instance admin; admins run the instance, not the models
+
+**Decided:** accounts carry an instance role, `admin` or `user`. The first
+account ever created is an admin (Gitea, Mattermost and Plausible do the same);
+an existing instance promotes its oldest account in the migration. Admins
+create, deactivate and delete accounts, reset passwords, open or close sign-up
+at runtime, and grant or revoke membership of any enterprise. There is always
+at least one active admin (INV-17).
+
+**What an admin deliberately cannot do:** read an enterprise's model without
+being a member of it. Most self-hosted tools let the instance admin see
+everything; here an enterprise often holds a real organization's architecture,
+and "the admin was in here" should be visible in the member list rather than
+silent. Granting themselves access is one click away and leaves that trace.
+
+**Why not a default admin account or admin credentials in the environment:** a
+default password does not get changed, and secrets in Compose files leak. "Who
+signs up first" needs neither and matches what people expect from the tools
+they already host. Sign-up stays closed by default after that first account;
+`AUTH_ALLOW_SIGNUP` seeds the switch only on an empty instance so a Compose
+file can preconfigure an open instance.
+
+**Why deactivation and admin password reset instead of email flows:** the API
+cannot send email, and a self-hosted team tool usually has an admin within
+reach. Deactivation keeps the account, its memberships and its history and
+ends its sessions; deletion is refused while the account is the last member
+of any enterprise, so nothing is stranded.
+
+**Not decided here:** roles *within* an enterprise (US-7.3). That is a column
+on `enterprise_members`, not another instance role.
+
+---
+
+## D-18 · The database enforces what it can, ids are `uuid`, and the migration history starts over
+
+**Decided:** three things at once, in one baseline migration.
+
+Ids are `uuid` columns with a Postgres default, not `text` holding a UUID the
+application minted. Same values, but the database validates the shape, the
+indexes are half the size, and a malformed id is a 400 instead of a query that
+silently matches nothing.
+
+Every invariant Postgres can express is declared in the schema: CHECKs for the
+half-open interval (INV-1), level-only-on-ABBs (INV-3), no self-relationship
+(INV-4), unit-only-on-teams (INV-13), lowercased emails and the settings
+singleton; partial unique indexes for "one open row per pair" (INV-5, 12, 15);
+and composite `(id, enterprise_id)` foreign keys where a row carries
+`enterprise_id` and references another that does (INV-6, the organization-unit
+parent, an actor's unit). The services and the bundle validator still check
+first — they produce messages, the database produces constraint names — and
+`pg-error.filter.ts` maps a constraint that fires anyway to a 400 or 409.
+
+The eleven migrations accumulated before any release were collapsed into one
+baseline. Nothing deployed depended on them, and a reader of
+`drizzle/0000_*.sql` now sees the schema, not its archaeology.
+
+**What was deliberately not done:** adding `enterprise_id` to the id-only link
+tables (`capability_actors`, `building_block_relationships`, …) so that INV-9,
+11 and 14 could be composite foreign keys too. It would change the bundle
+format and every link mutation for a rule two code paths already enforce;
+worth it only once the services stop being the sole writers. Likewise the
+ABB/SBB sides of a realization stay a code rule.
+
+**Revisit when:** the first release ships (from then on, migrations are
+append-only), or a second writer (a sync, a REST facade) makes the database the
+only common enforcement point.
+
+---
+
+## D-19 · Nobody but the account's owner ever knows its password
+
+**Decided:** an admin creates an account without a password and receives a
+one-time **setup link** (`/setup?token=…`, valid seven days). The person opens
+it and chooses their own password; the same link, issued again, is how a
+forgotten password is recovered. The admin's "set a password for this user"
+action is gone.
+
+**Why not a temporary password with a forced change on first login:** the
+password would still travel from the admin to the person — chat, mail, a
+note — and be known to two people until changed. A link carries no secret
+worth keeping: it works once, expires, and its hash is all the server stores.
+This is what Grafana, Mattermost, Outline and Keycloak converged on.
+
+**Why links without email:** the API cannot send mail, and a self-hosted team
+tool usually has the admin within reach. The link is shown once in the admin
+page with a copy button; when SMTP arrives, the same link gets sent instead of
+copied.
+
+**Consequences:** `users.password_hash` is nullable; an account without one
+cannot sign in and reads as "wrong email or password" (no enumeration). Using
+a link ends every other session of the account. Issuing a new link revokes the
+earlier unused ones, so "the newest link is the one that works" needs no
+explanation.
+
+**Revisit when:** email exists (send instead of copy, and let people request a
+reset themselves), or SSO lands (then most accounts never have a password at
+all).
+
+---
+
+## D-20 · Three fixed roles per enterprise over a permission catalogue, no role builder
+
+**Decided:** a membership carries one of three roles — **owner**, **editor**,
+**viewer** — and each role is a fixed bundle of permissions from a closed
+catalogue in `apps/api/src/auth/policy.ts`. Services check permissions
+(`assertCan(principal, 'model.write', enterpriseId)`), never roles. The web
+reads the caller's effective permissions off the enterprise and hides what
+would fail. Instance admins are not special inside an enterprise (D-17).
+
+**Why fixed roles:** this is where GitHub, Linear, Notion, Grafana, Gitea and
+Mattermost all landed — owner / editor / viewer under different names — and
+where custom roles exist (ServiceNow, Jira, Salesforce) they are a known
+source of confusion: the matrix grows with every feature and nobody can say
+what someone effectively may do. An architecture team needs three questions
+answered — who reads, who changes, who deletes and manages members — and a
+role builder answers them worse.
+
+**Why a permission catalogue underneath anyway:** so the roles can change
+without touching a service, and so custom roles, if a deployment ever truly
+needs them, become editable bundles over the same catalogue rather than a
+rewrite. The catalogue is the stable part; the bundles are policy.
+
+**Who may do what:** viewer — read, export. Editor — plus write the model.
+Owner — plus import (it replaces the model), change the enterprise itself,
+delete it, manage members. Anyone may leave an enterprise; the last owner
+cannot (INV-18). Creating an enterprise makes the creator its owner; everyone
+who had access before roles existed became an owner in the migration.
+
+**Not decided here:** per-enterprise feature toggles ("this enterprise does
+not use value streams"). That is a product setting, not a permission; it is
+in IDEAS.md until an enterprise asks for it.
+
+---
+
+## D-21 · Instance admins are implicit owners of every enterprise (supersedes part of D-17)
+
+**Decided:** an instance admin holds an owner membership in every enterprise
+without a row saying so. The session resolver adds those memberships to the
+principal, so every service, the web and `can()` see an ordinary owner. The admin page edits memberships per account — which enterprises, as what — next to the accounts themselves; an admin can also use any enterprise's own sheet like an owner. D-17's rule that an admin had to grant themselves
+access first is withdrawn.
+
+**Why:** that rule bought a trace in the member list — "the admin was in
+here" — at the price of a special case in the services, a second place to
+manage members, and a mental detour nobody expects. Whoever runs the instance
+has the database anyway; the trace was not protecting anything. Grafana's
+server admin and Gitea's site admin work exactly like this, and it is what a
+self-hosting team assumes.
+
+**What stays:** everything else in D-17 — first account is admin, admins run
+accounts and sign-up, INV-17. INV-18 counts explicit owners only, so an admin
+stepping out of the picture cannot strand an enterprise.
+
+**Revisit when:** one instance hosts enterprises of unrelated organizations
+(a provider serving several clients). Then the trace matters, and the right
+tool is an audit log, not a membership row.
+
+---
+
+## D-22 · Model icons are data: Iconify ids, served by this API
+
+**Decided:** a building block may carry an `icon`: an Iconify id such as
+`simple-icons:postgresql` or `lucide:database`, a string on the row and in the
+bundle, never markup or a URL. The API serves the icon data itself
+(`GET /api/icons/{prefix}.json?icons=…`, the Iconify API's format, from
+`@iconify-json/*` packages held in memory); the web draws it with
+`@iconify/react` and, in the landscape renderer, as inline SVG from the same
+cache. Two collections: Simple Icons for products, Lucide for generic glyphs.
+Adding one is a package plus a line in `icons/icon-id.ts`.
+
+**Why:** UI icons are known at build time and tree-shaken (D-7); a block's
+icon is chosen at runtime and is a fact about the model, so it belongs in the
+database and the export. Lucide 1.0 dropped its brand icons and points at
+Simple Icons, so a second source was needed anyway, and Iconify's format is
+the one every set is published in. Serving from this API keeps a self-hosted
+instance from calling the public Iconify API.
+
+**Rules:** the collection must be on the allowlist, on mutation and import
+alike. The name is not checked, so an id from a newer set release survives an
+import and shows the fallback until the set catches up. Examples are held
+stricter: `scripts/check-example-icons.mjs` runs in CI. Icons are monochrome;
+brand colours are not stored. CC0 covers the SVGs, not the trademarks.
+
+**Cost:** Lucide exists twice, tree-shaken in the bundle and as a set on the
+server. Deliberate: `DynamicIcon` from `lucide-react/dynamic` covers no brands
+and cannot draw inside diagram-js. D-7 stands for UI icons.
+
+**Revisit if:** someone needs an icon no served set has: then a custom
+collection or per-enterprise uploads ([IDEAS.md](IDEAS.md)).
+
+---
+
+## D-23 · Instance branding: name and images, set at runtime; no theming
+
+**Decided:** an instance admin can set a name and three images (a logo, a
+dark-theme variant, a square icon) on the admin page, at runtime, never in an
+environment variable or at build time. The name lives in `instance_settings`,
+the images as bytes in `instance_assets`. They replace the product's mark and
+name wherever the software says who it is: sidebar, sign-in and setup pages,
+tab title and favicon. A branded instance shows "Powered by OpenEAM" under the
+sign-in form. Colours, fonts and layout are not customisable.
+
+**Why:** it is what self-hosted tools do (GitLab, Gitea and Grafana stop at
+name and logo in their open editions), and whoever pulls the image must be
+able to brand it without a rebuild. Theming is out because colour carries
+meaning here (domain, lifecycle, edge type); a customer colour would compete
+with the model.
+
+**Safety:** an uploaded SVG is an XSS vector. Images are embedded only as
+`<img>`, where SVG runs no script, and `GET /api/branding/{slot}` adds a
+scripts-forbidden CSP, `sandbox` and `nosniff`. Uploads are checked against
+their file signature (SVG: no scripts, handlers or embeds) and capped at
+512 KB. Bytes in the database keep the API container stateless and the images
+in the backup.
+
+**Revisit if:** one instance serves several clients who each want their own
+brand: then per-enterprise branding, probably with a domain per enterprise.

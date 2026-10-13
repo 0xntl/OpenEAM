@@ -1,9 +1,10 @@
 // Global database module. Builds a single Postgres connection (Drizzle ORM + pg
-// Pool) from DATABASE_URL and exposes both via DI tokens; closes the pool on
-// application shutdown.
+// Pool) from the validated config and exposes both via DI tokens; closes the
+// pool on application shutdown.
 import { Global, Inject, Module, type OnModuleDestroy } from '@nestjs/common';
 import { createDatabase, type Database } from '@openeam/db';
 import type { Pool } from 'pg';
+import { config } from './config';
 
 export const DATABASE = Symbol('DATABASE');
 export const DB_POOL = Symbol('DB_POOL');
@@ -18,11 +19,7 @@ type Connection = ReturnType<typeof createDatabase>;
     {
       provide: CONNECTION,
       useFactory: (): Connection => {
-        const connectionString = process.env.DATABASE_URL;
-        if (!connectionString) {
-          throw new Error('DATABASE_URL environment variable is required');
-        }
-        return createDatabase({ connectionString });
+        return createDatabase({ connectionString: config.DATABASE_URL });
       },
     },
     {

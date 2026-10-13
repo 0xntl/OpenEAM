@@ -1,5 +1,6 @@
 export * from './actors';
 export * from './architecture-domains';
+export * from './auth';
 export * from './building-blocks';
 export * from './business-capabilities';
 export * from './business-processes';

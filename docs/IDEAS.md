@@ -21,6 +21,9 @@ Nothing here is decided. Three neighbours hold the things that are:
 - **Capability-to-architecture drill-down view** — a small, focused diagram/list on the business capability detail page showing just its realizing building blocks (and maybe their dependency subgraph). Tried as a layer on the main landscape diagram first (pills + a `serves` edge) and taken back out — capability-to-architecture is a different question ("what fulfills this?") from whole-landscape ("what's the architecture of the whole thing?"), and answering both in one picture just added noise. Revisit once the main diagram is in good shape.
 - **Diagram support for indirect/transitive dependencies** — "what depends on this, directly and indirectly" (US-3.2) needs a graph traversal the diagram doesn't do today; it only ever shows one hop.
 - **Multi-enterprise landscape view** — an enterprise's own landscape is sometimes only part of the picture (e.g. a vendor's product plugged into each client's own IT architecture). Depends on the cross-enterprise link tables in [VISION.md](VISION.md)/UC-8, which aren't built yet.
+- **Custom icon collection (`openeam`)** — SVGs in the repo on Lucide's grid, built into one Iconify JSON with `@iconify/tools` and added to the allowlist. For internal concepts no public set covers; worth doing the first time someone asks (D-22).
+- **Per-enterprise icon uploads** — logos of internal systems. Needs server-side SVG sanitising, its own table, delivery as a collection per enterprise and a place in the bundle. After the custom collection, if internal logos turn out to matter.
+- **Icon search by title** — the search matches names and aliases (`postgresql`), not display titles; those live in the `simple-icons` npm package. Add if name matching proves too blunt.
 - **Audit log** — when there are real write operations.
 - **Entity versioning** — when entity history needs preserving.
 
@@ -31,10 +34,12 @@ Nothing here is decided. Three neighbours hold the things that are:
 
 ## Platform and interfaces
 
-- **Auth (Keycloak)** — with the first multi-user feature; enterprise scoping today is a modelling boundary, not access control. Keycloak in Compose, OIDC on the API (passport-jwt + JWKS), OIDC client on the web.
+- **Per-enterprise feature toggles** — hide areas an enterprise does not use (a household has no value streams; a bank has no need to hide anything). GitLab's per-project features are the model. A list of enabled areas on the enterprise plus a navigation that honours it; a product setting, not a permission (D-20). Build when an enterprise asks.
+
+- **OIDC sign-in** — as an *additional* way in next to local accounts (D-15), when a deployment needs SSO. OIDC on the API (JWKS validation of the id token, then a normal session), an OIDC client on the web, Keycloak or the company IdP as the provider. Accounts stay local; the provider only proves who is signing in.
 - **REST facade** — only when a real third-party integrator needs it (CMDB sync, ServiceNow, iPaaS, scripts). REST + OpenAPI for core resources, sharing the service layer with GraphQL.
 - **TanStack Query** — when the frontend calls a REST endpoint other than /health.
-- **GraphQL Codegen + `packages/graphql`** — the API already emits its SDL to a committed `apps/api/schema.gql` (reviewable in diffs, codegen-ready). When the first real operations land: add graphql-codegen on the web, with the generated types in a shared `@openeam/graphql` package (so a future REST client / second consumer can reuse them). Note: `autoSchemaFile` writes the SDL at runtime — if the API container is later hardened to a read-only FS, generate the schema at build time instead.
+- **GraphQL Codegen + `packages/graphql`** — the API already emits its SDL to a committed `apps/api/schema.gql` (reviewable in diffs, codegen-ready). When the first real operations land: add graphql-codegen on the web, with the generated types in a shared `@openeam/graphql` package (so a future REST client / second consumer can reuse them). Note: in production the API builds the SDL in memory (`autoSchemaFile: true`) because the container's app directory is not writable; codegen would read the committed `schema.gql` from the dev run.
 - **Persisted queries** — during production hardening.
 - **BullMQ + Redis** — first async job (e.g. CSV import).
 - **MinIO** — first file upload.
@@ -56,4 +61,4 @@ Nothing here is decided. Three neighbours hold the things that are:
 ## Public face
 
 - **Community channels / demo hosting** — when there's activity and something to show.
-- **Marketing site brand color** — a muted terracotta, `#b5452f` (`oklch(0.54 0.15 33)`), is reserved as OpenEAM's primary brand color for whenever a public/marketing site gets built. Deliberately *not* a UI accent inside the app itself — the app is color-coded for information everywhere (architecture domain, strategic direction, edge type), so a decorative accent on top of that would compete with those meanings rather than add identity. Today it appears in exactly one place in the app: the top-left square of the favicon (`apps/web/public/favicon.svg`, hardcoded hex since favicons don't reliably support `oklch()`) — it was briefly also on the "OpenEAM" sidebar wordmark, taken back out. No `index.css` token for it currently; add one back (`--color-brand`) if a second use case shows up.
+- **Marketing site brand color** — a muted terracotta, `#b5452f` (`oklch(0.54 0.15 33)`), is reserved as OpenEAM's primary brand color for whenever a public/marketing site gets built. Deliberately *not* a UI accent inside the app itself — the app is color-coded for information everywhere (architecture domain, strategic direction, edge type), so a decorative accent on top of that would compete with those meanings rather than add identity. In the app it appears only in the product's mark — the filled square of the favicon and of `components/brand/brand.tsx`, which the sidebar and the sign-in page show until an instance is branded (D-23). It lives as `--brand` in `index.css` for exactly that use; it is still not an accent anywhere else.

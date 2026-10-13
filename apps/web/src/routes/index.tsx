@@ -4,8 +4,19 @@
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 import { createFileRoute, Link } from '@tanstack/react-router';
+import {
+  Blocks,
+  Library,
+  type LucideIcon,
+  Route as RouteIcon,
+  Target,
+  Users,
+  Workflow,
+} from 'lucide-react';
 import { contentWidthClassName, PageHeader } from '@/components/ui/page-header';
 import { useEnterprise } from '@/lib/enterprise';
+import type { LifecyclePhase } from '@/lib/entities';
+import { LIFECYCLE_LABEL } from '@/lib/labels';
 
 const OVERVIEW_QUERY = gql`
   query EnterpriseOverview($enterpriseId: String!) {
@@ -25,6 +36,12 @@ const OVERVIEW_QUERY = gql`
       id
       lifecyclePhase
       __typename
+    }
+    actors(enterpriseId: $enterpriseId) {
+      id
+    }
+    informationObjects(enterpriseId: $enterpriseId) {
+      id
     }
   }
 `;
@@ -51,24 +68,68 @@ interface OverviewData {
   businessCapabilities: OverviewCapability[];
   businessProcesses: OverviewProcess[];
   buildingBlocks: OverviewBuildingBlock[];
+  actors: { id: string }[];
+  informationObjects: { id: string }[];
 }
 
-const LIFECYCLE_LABELS: Record<string, string> = {
-  ACTIVE: 'Active',
-  PLANNED: 'Planned',
-  PHASING_OUT: 'Phasing out',
-  RETIRED: 'Retired',
-};
-
-function StatTile({ label, value, to }: { label: string; value: number; to: string }) {
+function StatTile({
+  label,
+  value,
+  to,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  to: string;
+  icon: LucideIcon;
+}) {
   return (
     <Link
       to={to}
-      className="flex flex-col gap-1 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-foreground/30"
+      className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-xs transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md"
     >
-      <span className="text-2xl font-semibold text-foreground">{value}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="flex items-center justify-between text-xs text-muted-foreground">
+        {label}
+        <Icon className="size-4" strokeWidth={2} />
+      </span>
+      <span className="text-2xl font-semibold tracking-tight text-foreground">{value}</span>
     </Link>
+  );
+}
+
+const LIFECYCLE_ORDER: LifecyclePhase[] = ['PLANNED', 'ACTIVE', 'PHASING_OUT', 'RETIRED'];
+const LIFECYCLE_COLOR: Record<LifecyclePhase, string> = {
+  PLANNED: 'bg-sky-500',
+  ACTIVE: 'bg-emerald-500',
+  PHASING_OUT: 'bg-amber-500',
+  RETIRED: 'bg-neutral-400',
+};
+
+// One bar, four segments: the lifecycle mix of the whole landscape at a glance.
+function LifecycleBar({ counts }: { counts: Partial<Record<LifecyclePhase, number>> }) {
+  const total = LIFECYCLE_ORDER.reduce((sum, p) => sum + (counts[p] ?? 0), 0);
+  if (total === 0) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+        {LIFECYCLE_ORDER.filter((p) => (counts[p] ?? 0) > 0).map((p) => (
+          <div
+            key={p}
+            className={LIFECYCLE_COLOR[p]}
+            style={{ width: `${((counts[p] ?? 0) / total) * 100}%` }}
+            title={`${LIFECYCLE_LABEL[p]}: ${counts[p]}`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-foreground">
+        {LIFECYCLE_ORDER.filter((p) => (counts[p] ?? 0) > 0).map((p) => (
+          <span key={p} className="flex items-center gap-1.5">
+            <span className={`size-2 rounded-full ${LIFECYCLE_COLOR[p]}`} />
+            {LIFECYCLE_LABEL[p]} <span className="text-muted-foreground">{counts[p]}</span>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -100,26 +161,37 @@ function HomeRoute() {
 
       {enterprise && (
         <>
-          <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             <StatTile
               label="Value streams"
               value={data?.valueStreams.length ?? 0}
               to="/value-streams"
+              icon={RouteIcon}
             />
             <StatTile
               label="Business capabilities"
               value={data?.businessCapabilities.length ?? 0}
               to="/capabilities"
+              icon={Target}
             />
             <StatTile
               label="Business processes"
               value={data?.businessProcesses.length ?? 0}
               to="/business-processes"
+              icon={Workflow}
+            />
+            <StatTile label="Actors" value={data?.actors.length ?? 0} to="/actors" icon={Users} />
+            <StatTile
+              label="Information"
+              value={data?.informationObjects.length ?? 0}
+              to="/information-objects"
+              icon={Library}
             />
             <StatTile
               label="Building blocks"
               value={data?.buildingBlocks.length ?? 0}
               to="/building-blocks"
+              icon={Blocks}
             />
           </div>
 
@@ -128,14 +200,7 @@ function HomeRoute() {
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Building blocks by lifecycle
               </h2>
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-foreground">
-                {Object.entries(lifecycleCounts).map(([phase, count]) => (
-                  <span key={phase}>
-                    {LIFECYCLE_LABELS[phase] ?? phase}{' '}
-                    <span className="text-muted-foreground">{count}</span>
-                  </span>
-                ))}
-              </div>
+              <LifecycleBar counts={lifecycleCounts as Partial<Record<LifecyclePhase, number>>} />
             </div>
           )}
 

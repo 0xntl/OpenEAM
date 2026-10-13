@@ -1,0 +1,1 @@
+ALTER TABLE "building_blocks" ADD COLUMN "icon" text;

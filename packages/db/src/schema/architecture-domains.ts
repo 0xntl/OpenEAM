@@ -1,6 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { relations } from 'drizzle-orm';
-import { boolean, index, pgTable, text, unique } from 'drizzle-orm/pg-core';
+import { boolean, index, pgTable, text, unique, uuid } from 'drizzle-orm/pg-core';
 import { buildingBlockArchitectureDomains } from './building-blocks';
 import { enterprises } from './enterprises';
 import { timestamps } from './helpers';
@@ -11,10 +10,8 @@ import { timestamps } from './helpers';
 export const architectureDomains = pgTable(
   'architecture_domains',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    enterpriseId: text('enterprise_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    enterpriseId: uuid('enterprise_id')
       .notNull()
       .references(() => enterprises.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),

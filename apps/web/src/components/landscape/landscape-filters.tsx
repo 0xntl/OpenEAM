@@ -113,7 +113,7 @@ export function LandscapeFilters({
         htmlFor="landscape-org-unit"
         className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
       >
-        Org unit
+        Organization unit
         <Select
           value={value.organizationUnitId || SELECT_EMPTY_VALUE}
           onValueChange={(v) =>

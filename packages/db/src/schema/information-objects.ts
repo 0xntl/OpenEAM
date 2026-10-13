@@ -1,9 +1,8 @@
-import { randomUUID } from 'node:crypto';
-import { relations } from 'drizzle-orm';
-import { date, index, pgEnum, pgTable, text } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import { date, index, pgEnum, pgTable, text, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { businessCapabilities } from './business-capabilities';
 import { enterprises } from './enterprises';
-import { timestamps } from './helpers';
+import { timestamps, validityCheck } from './helpers';
 
 // How a capability relates to a piece of information. Deliberately three
 // values rather than a CRUD matrix, for the same reason the building block
@@ -21,10 +20,8 @@ export const informationUsage = pgEnum('information_usage', ['owns', 'creates', 
 export const informationObjects = pgTable(
   'information_objects',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    enterpriseId: text('enterprise_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    enterpriseId: uuid('enterprise_id')
       .notNull()
       .references(() => enterprises.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
@@ -41,13 +38,11 @@ export const informationObjects = pgTable(
 export const capabilityInformation = pgTable(
   'capability_information',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    capabilityId: text('capability_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    capabilityId: uuid('capability_id')
       .notNull()
       .references(() => businessCapabilities.id, { onDelete: 'cascade' }),
-    informationObjectId: text('information_object_id')
+    informationObjectId: uuid('information_object_id')
       .notNull()
       .references(() => informationObjects.id, { onDelete: 'cascade' }),
     usage: informationUsage('usage').notNull().default('uses'),
@@ -58,6 +53,11 @@ export const capabilityInformation = pgTable(
   (t) => [
     index('capability_information_capability_id_idx').on(t.capabilityId),
     index('capability_information_information_object_id_idx').on(t.informationObjectId),
+    validityCheck('capability_information', t.validFrom, t.validTo),
+    // INV-12 at the database: one *open* link per capability and object.
+    uniqueIndex('capability_information_one_open_per_pair_idx')
+      .on(t.capabilityId, t.informationObjectId)
+      .where(sql`${t.validTo} IS NULL`),
   ],
 );
 

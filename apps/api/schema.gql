@@ -2,6 +2,12 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
+type AccountSummary {
+  displayName: String!
+  email: String!
+  id: String!
+}
+
 type Actor {
   capabilities: [ActorCapabilityLink!]!
   description: String
@@ -49,12 +55,31 @@ enum ActorKind {
   TEAM
 }
 
+type AdminUser {
+  createdAt: String!
+  disabledAt: String
+  displayName: String!
+  email: String!
+  hasPassword: Boolean!
+  id: String!
+  instanceRole: InstanceRole!
+  memberships: [AdminUserMembership!]!
+  setupLinkExpiresAt: String
+}
+
+type AdminUserMembership {
+  enterpriseId: String!
+  enterpriseName: String!
+  role: EnterpriseRole!
+}
+
 type ArchitectureBuildingBlock implements BuildingBlock {
   architectureDomainIds: [String!]!
   architectureLevel: ArchitectureLevel
   capabilityLinks: [CapabilityLink!]!
   description: String
   enterpriseId: String!
+  icon: String
   id: String!
   incomingRelationships: [BuildingBlockRelationship!]!
   lifecyclePhase: LifecyclePhase!
@@ -83,10 +108,25 @@ enum ArchitectureLevel {
   STRATEGIC
 }
 
+type AuthPayload {
+  expiresAt: String!
+  token: String!
+  user: User!
+}
+
+type AuthStatus {
+  iconVersion: String
+  instanceName: String
+  logoDarkVersion: String
+  logoVersion: String
+  signUpAllowed: Boolean!
+}
+
 interface BuildingBlock {
   architectureDomainIds: [String!]!
   description: String
   enterpriseId: String!
+  icon: String
   id: String!
   incomingRelationships: [BuildingBlockRelationship!]!
   lifecyclePhase: LifecyclePhase!
@@ -102,6 +142,7 @@ input BuildingBlockInput {
   architectureLevel: ArchitectureLevel
   description: String
   enterpriseId: String!
+  icon: String
   kind: BuildingBlockKind!
   lifecyclePhase: LifecyclePhase!
   name: String!
@@ -227,12 +268,32 @@ type CapabilityLink {
   validTo: String
 }
 
+input ChangePasswordInput {
+  currentPassword: String!
+  newPassword: String!
+}
+
+input CompletePasswordSetupInput {
+  password: String!
+  token: String!
+}
+
+input CreateUserInput {
+  displayName: String!
+  email: String!
+  instanceRole: InstanceRole
+  memberships: [MembershipInput!]
+}
+
 type Enterprise {
   avatarBgColor: String
   avatarTextColor: String
   description: String
   goal: String
   id: String!
+  members: [EnterpriseMember!]!
+  myPermissions: [String!]!
+  myRole: EnterpriseRole
   name: String!
 }
 
@@ -242,6 +303,22 @@ input EnterpriseInput {
   description: String
   goal: String
   name: String!
+}
+
+type EnterpriseMember {
+  displayName: String!
+  email: String!
+  role: EnterpriseRole!
+  userId: String!
+}
+
+"""
+owner: everything, including members and deletion. editor: models the enterprise. viewer: reads it.
+"""
+enum EnterpriseRole {
+  EDITOR
+  OWNER
+  VIEWER
 }
 
 type Information {
@@ -286,6 +363,27 @@ enum InformationUsage {
   USES
 }
 
+"""
+Instance-level role: admin (manages accounts, sign-up and access to enterprises), user (everything else).
+"""
+enum InstanceRole {
+  ADMIN
+  USER
+}
+
+type InstanceSettings {
+  iconVersion: String
+  logoDarkVersion: String
+  logoVersion: String
+  name: String
+  signUpOpen: Boolean!
+}
+
+input InstanceSettingsInput {
+  name: String
+  signUpOpen: Boolean
+}
+
 enum LifecyclePhase {
   ACTIVE
   PHASING_OUT
@@ -293,14 +391,43 @@ enum LifecyclePhase {
   RETIRED
 }
 
+input MembershipInput {
+  enterpriseId: String!
+  role: EnterpriseRole
+}
+
 type Mutation {
+  """
+  Gives an existing account access to an enterprise in a role (editor by default). Returns the member list.
+  """
+  addEnterpriseMember(email: String!, enterpriseId: String!, role: EnterpriseRole): [EnterpriseMember!]!
+
+  """Changes the own password and signs out every other session."""
+  changePassword(input: ChangePasswordInput!): Boolean!
+
+  """
+  Sets the password behind a setup link, ends other sessions, and signs in.
+  """
+  completePasswordSetup(input: CompletePasswordSetupInput!): AuthPayload!
   createActor(input: ActorInput!): Actor!
   createBuildingBlock(input: BuildingBlockInput!): BuildingBlock!
   createBuildingBlockRelationship(input: BuildingBlockRelationshipInput!): BuildingBlockRelationship!
   createBusinessCapability(input: BusinessCapabilityInput!): BusinessCapability!
   createBusinessProcess(input: BusinessProcessInput!): BusinessProcess!
+
+  """Creates an enterprise with the caller as its first member."""
   createEnterprise(input: EnterpriseInput!): Enterprise!
   createInformationObject(input: InformationObjectInput!): InformationObject!
+
+  """
+  Issues a new one-time link through which the person sets a password; earlier links stop working.
+  """
+  createPasswordSetupLink(userId: String!): SetupLink!
+
+  """
+  Creates an account without a password and returns its one-time setup link.
+  """
+  createUser(input: CreateUserInput!): SetupLink!
   createValueStream(input: ValueStreamInput!): ValueStream!
   deleteActor(id: String!): Boolean!
   deleteBuildingBlock(id: String!): Boolean!
@@ -309,9 +436,21 @@ type Mutation {
   deleteBusinessProcess(id: String!): Boolean!
   deleteEnterprise(id: String!): Boolean!
   deleteInformationObject(id: String!): Boolean!
+  deleteUser(userId: String!): Boolean!
   deleteValueStream(id: String!): Boolean!
   linkCapabilityActor(input: CapabilityActorInput!): Actor!
   linkCapabilityInformation(input: CapabilityInformationInput!): InformationObject!
+
+  """Returns the remaining member list."""
+  removeEnterpriseMember(enterpriseId: String!, userId: String!): [EnterpriseMember!]!
+
+  """Returns the member list."""
+  setEnterpriseMemberRole(enterpriseId: String!, role: EnterpriseRole!, userId: String!): [EnterpriseMember!]!
+  setUserDisabled(disabled: Boolean!, userId: String!): AdminUser!
+  setUserRole(role: InstanceRole!, userId: String!): AdminUser!
+  signIn(input: SignInInput!): AuthPayload!
+  signOut: Boolean!
+  signUp(input: SignUpInput!): AuthPayload!
   unlinkCapabilityActor(linkId: String!): Boolean!
   unlinkCapabilityInformation(linkId: String!): Boolean!
   updateActor(id: String!, input: ActorInput!): Actor!
@@ -321,6 +460,7 @@ type Mutation {
   updateBusinessProcessDiagram(bpmnXml: String!, id: String!): BusinessProcess!
   updateEnterprise(id: String!, input: EnterpriseInput!): Enterprise!
   updateInformationObject(id: String!, input: InformationObjectInput!): InformationObject!
+  updateInstanceSettings(input: InstanceSettingsInput!): InstanceSettings!
   updateValueStream(id: String!, input: ValueStreamInput!): ValueStream!
 }
 
@@ -344,6 +484,10 @@ type ProcessStep {
 }
 
 type Query {
+  """
+  Active accounts on the instance, for owners choosing whom to add to an enterprise.
+  """
+  accounts: [AccountSummary!]!
   actor(id: String!): Actor
   actors(enterpriseId: String!): [Actor!]!
   architectureDomain(id: String!): ArchitectureDomain
@@ -357,6 +501,7 @@ type Query {
     enterpriseId: String!
     organizationUnitId: String
   ): [ArchitectureBuildingBlock!]!
+  authStatus: AuthStatus!
   buildingBlock(id: String!): BuildingBlock
   buildingBlocks(enterpriseId: String!): [BuildingBlock!]!
   businessCapabilities(enterpriseId: String!): [BusinessCapability!]!
@@ -364,14 +509,25 @@ type Query {
   businessProcess(id: String!): BusinessProcess
   businessProcesses(enterpriseId: String!): [BusinessProcess!]!
   enterprise(id: String!): Enterprise
+
+  """The enterprises the signed-in user is a member of."""
   enterprises: [Enterprise!]!
   informationObject(id: String!): InformationObject
   informationObjects(enterpriseId: String!): [InformationObject!]!
+
+  """Admin only."""
+  instanceSettings: InstanceSettings!
+
+  """The signed-in user, or null."""
+  me: User
   organizationUnit(id: String!): OrganizationUnit
   organizationUnits(enterpriseId: String!): [OrganizationUnit!]!
 
   """Liveness smoke-test. Returns "pong"."""
   ping: String!
+
+  """Whether a setup link is usable, and for whom."""
+  setupTokenStatus(token: String!): SetupTokenStatus!
   solutionsLandscape(
     architectureDomainId: String
 
@@ -380,6 +536,9 @@ type Query {
     enterpriseId: String!
     organizationUnitId: String
   ): [SolutionBuildingBlock!]!
+
+  """Every account on the instance. Admin only."""
+  users: [AdminUser!]!
   valueStream(id: String!): ValueStream
   valueStreams(enterpriseId: String!): [ValueStream!]!
 }
@@ -391,10 +550,44 @@ type RealizationLink {
   validTo: String
 }
 
+type SetupLink {
+  expiresAt: String!
+  purpose: SetupTokenPurpose!
+  token: String!
+  user: AdminUser!
+}
+
+"""
+Why a setup link was issued: setup (new account), reset (replace a password).
+"""
+enum SetupTokenPurpose {
+  RESET
+  SETUP
+}
+
+type SetupTokenStatus {
+  displayName: String
+  email: String
+  purpose: SetupTokenPurpose
+  valid: Boolean!
+}
+
+input SignInInput {
+  email: String!
+  password: String!
+}
+
+input SignUpInput {
+  displayName: String!
+  email: String!
+  password: String!
+}
+
 type SolutionBuildingBlock implements BuildingBlock {
   architectureDomainIds: [String!]!
   description: String
   enterpriseId: String!
+  icon: String
   id: String!
   incomingRelationships: [BuildingBlockRelationship!]!
   lifecyclePhase: LifecyclePhase!
@@ -404,6 +597,13 @@ type SolutionBuildingBlock implements BuildingBlock {
   realizes: [RealizationLink!]!
   validFrom: String
   validTo: String
+}
+
+type User {
+  displayName: String!
+  email: String!
+  id: String!
+  instanceRole: InstanceRole!
 }
 
 type ValueStream {

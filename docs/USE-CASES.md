@@ -41,7 +41,7 @@ answered.
 - [ ] The question can be answered in the UI, from an empty instance, without hand-writing JSON
 - [ ] Every new field can be created and edited in the UI, not only imported
 - [ ] Every new field has a named updater and a way to tell that it's stale
-- [ ] Service-layer invariants hold on the import path too — the bundle importer writes rows directly and bypasses them today ([data-exchange.service.ts](../apps/api/src/data-exchange/data-exchange.service.ts))
+- [x] Service-layer invariants hold on the import path too — the bundle validator checks the whole bundle before anything is written ([data-bundle.validator.ts](../apps/api/src/data-exchange/data-bundle.validator.ts), D-16)
 - [ ] `examples/household.json` exercises it, and `pnpm lint`, `pnpm -r typecheck`, `pnpm -r build` pass
 - [ ] README or `docs/` says how to use it
 
@@ -160,9 +160,11 @@ needs to record end-of-support separately from our own retirement date.
 *As an **architect**, I need to **hand a stakeholder one view of the model**, so
 I can decide **nothing — they do, and they need to see it without an account**.*
 
-A shareable or exportable viewpoint. Brushes against auth
-([Keycloak in IDEAS.md](IDEAS.md)), which is the crosscut that will land somewhere
-around here: enterprise scoping today is a modelling boundary, not access control.
+A shareable or exportable viewpoint. Access restriction itself has landed:
+accounts, sessions, and membership of an enterprise (see
+[ARCHITECTURE.md](ARCHITECTURE.md), INV-16). What is still open here is the
+product side — a view someone can read *without* an account, and roles within an
+enterprise so that sharing is not all-or-nothing.
 
 ### UC-8 · Reference the same real thing from two enterprises
 

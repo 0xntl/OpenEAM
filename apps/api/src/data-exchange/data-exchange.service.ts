@@ -3,10 +3,19 @@
 // enterprises and everything modeled within them; import replaces exactly
 // those enterprises (delete cascades from the enterprises table wipe their
 // rows) and leaves every other enterprise untouched.
-import { Inject, Injectable } from '@nestjs/common';
-import { type Database, inArray, schema } from '@openeam/db';
+//
+// Both directions are scoped to the caller (INV-16): export only hands out
+// enterprises they are a member of, and import only replaces ones they are a
+// member of (or creates new ones, with the caller as first member). Memberships
+// are not part of a bundle — they describe an instance, not a model — so they
+// are preserved across the delete-and-reinsert.
+import { BadRequestException, ForbiddenException, Inject, Injectable } from '@nestjs/common';
+import { type Database, inArray, schema, type Transaction } from '@openeam/db';
+import { assertCan } from '../auth/policy';
+import { grantMembership, type Principal } from '../auth/principal';
 import { DATABASE } from '../db.module';
 import type { DataBundle } from './data-bundle.schema';
+import { type BundleIssue, validateBundle } from './data-bundle.validator';
 
 // Orders rows of a self-referencing table so parents precede children,
 // satisfying the FK on insert. Rows with dangling or cyclic parent
@@ -32,11 +41,13 @@ function parentsFirst<T extends { id: string; parentId: string | null }>(rows: T
 export class DataExchangeService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  // Without enterpriseId: a full backup of every enterprise. With it: just
-  // that enterprise's model.
-  async export(enterpriseId?: string): Promise<DataBundle> {
+  // Without enterpriseId: every enterprise the caller is a member of. With
+  // it: just that enterprise's model.
+  async export(principal: Principal, enterpriseId?: string): Promise<DataBundle> {
+    if (enterpriseId) assertCan(principal, 'data.export', enterpriseId);
+    const visible = new Set(enterpriseId ? [enterpriseId] : principal.enterpriseIds);
     const enterpriseFilter = <T extends { enterpriseId: string }>(rows: T[]): T[] =>
-      enterpriseId ? rows.filter((r) => r.enterpriseId === enterpriseId) : rows;
+      rows.filter((r) => visible.has(r.enterpriseId));
 
     const [
       enterprises,
@@ -97,8 +108,15 @@ export class DataExchangeService {
     const scopedActors = enterpriseFilter(actors);
     const actorIds = new Set(scopedActors.map((a) => a.id));
 
-    return {
-      enterprises: enterpriseId ? enterprises.filter((e) => e.id === enterpriseId) : enterprises,
+    // Row order is not meaningful; a stable one keeps a re-export of the same
+    // model byte-identical, so a diff between two bundles shows real changes.
+    const byId = <T extends { id: string }>(rows: T[]): T[] =>
+      [...rows].sort((a, b) => a.id.localeCompare(b.id));
+    const byKey = <T>(rows: T[], key: (r: T) => string): T[] =>
+      [...rows].sort((a, b) => key(a).localeCompare(key(b)));
+
+    return sortBundle({
+      enterprises: enterprises.filter((e) => visible.has(e.id)),
       businessCapabilities: scopedCapabilities,
       businessProcesses: scopedProcesses,
       processSteps: processSteps.filter((s) => processIds.has(s.processId)),
@@ -137,17 +155,107 @@ export class DataExchangeService {
       capabilityActors: capabilityActors.filter(
         (l) => actorIds.has(l.actorId) && capabilityIds.has(l.capabilityId),
       ),
-    };
+    });
+
+    function sortBundle(bundle: DataBundle): DataBundle {
+      return {
+        ...bundle,
+        enterprises: byId(bundle.enterprises),
+        businessCapabilities: byId(bundle.businessCapabilities),
+        businessProcesses: byId(bundle.businessProcesses),
+        processSteps: byId(bundle.processSteps),
+        valueStreams: byId(bundle.valueStreams),
+        valueStreamStages: byId(bundle.valueStreamStages),
+        stageCapabilities: byKey(bundle.stageCapabilities, (r) => `${r.stageId}/${r.capabilityId}`),
+        architectureDomains: byId(bundle.architectureDomains),
+        organizationUnits: byId(bundle.organizationUnits),
+        buildingBlocks: byId(bundle.buildingBlocks),
+        buildingBlockArchitectureDomains: byKey(
+          bundle.buildingBlockArchitectureDomains,
+          (r) => `${r.buildingBlockId}/${r.architectureDomainId}`,
+        ),
+        buildingBlockOrganizationUnits: byId(bundle.buildingBlockOrganizationUnits),
+        buildingBlockRealizations: byId(bundle.buildingBlockRealizations),
+        buildingBlockCapabilities: byId(bundle.buildingBlockCapabilities),
+        buildingBlockRelationships: byId(bundle.buildingBlockRelationships),
+        informationObjects: byId(bundle.informationObjects),
+        capabilityInformation: byId(bundle.capabilityInformation),
+        actors: byId(bundle.actors),
+        capabilityActors: byId(bundle.capabilityActors),
+      };
+    }
   }
 
-  async import(bundle: DataBundle): Promise<void> {
+  async import(principal: Principal, bundle: DataBundle): Promise<void> {
+    // The invariants the services enforce, applied to the whole bundle up
+    // front (D-16). Nothing is written if anything is wrong.
+    const issues = validateBundle(bundle);
+    if (issues.length > 0) {
+      throw new BadRequestException({ message: 'The bundle violates model rules', issues });
+    }
+
+    const enterpriseIds = bundle.enterprises.map((e) => e.id);
+
+    // An enterprise that already exists here may only be replaced by one of
+    // its members; a bundle is not a way around the boundary.
+    const existing = await this.db.query.enterprises.findMany({
+      where: (t, { inArray }) => inArray(t.id, enterpriseIds),
+      columns: { id: true, name: true },
+    });
+    for (const enterprise of existing) {
+      if (!principal.enterpriseIds.includes(enterprise.id)) {
+        throw new ForbiddenException(
+          `Enterprise ${enterprise.id} exists and you are not a member of it`,
+        );
+      }
+      assertCan(principal, 'data.import', enterprise.id);
+    }
+
+    // Deleting the enterprises cascades through enterprise_members too;
+    // remember who had access so a restore does not lock anyone out.
+    const memberships =
+      enterpriseIds.length > 0
+        ? await this.db.query.enterpriseMembers.findMany({
+            where: (t, { inArray }) => inArray(t.enterpriseId, enterpriseIds),
+            columns: { enterpriseId: true, userId: true, role: true },
+          })
+        : [];
+
     await this.db.transaction(async (tx) => {
       // Replace the bundle's enterprises: deleting them cascades to every
       // row modeled within them, leaving other enterprises untouched.
-      const enterpriseIds = bundle.enterprises.map((e) => e.id);
       if (enterpriseIds.length > 0) {
         await tx.delete(schema.enterprises).where(inArray(schema.enterprises.id, enterpriseIds));
+      }
+
+      // INV-10: ids are globally unique. The bundle's own enterprises are
+      // gone at this point, so any id that still exists belongs to another
+      // enterprise — report it by table and id instead of letting Postgres
+      // answer with a duplicate-key 500. Throwing rolls the transaction back.
+      const collisions = await this.collisions(tx, bundle);
+      if (collisions.length > 0) {
+        throw new BadRequestException({
+          message: 'The bundle reuses ids that already exist in another enterprise',
+          issues: collisions,
+        });
+      }
+
+      if (enterpriseIds.length > 0) {
         await tx.insert(schema.enterprises).values(bundle.enterprises);
+
+        // Memberships and roles survive the replace; whoever imports a new
+        // enterprise owns it.
+        const restored = new Map(memberships.map((m) => [`${m.enterpriseId}:${m.userId}`, m]));
+        for (const enterpriseId of enterpriseIds) {
+          const key = `${enterpriseId}:${principal.userId}`;
+          if (!restored.has(key)) {
+            restored.set(key, { enterpriseId, userId: principal.userId, role: 'owner' as const });
+          }
+        }
+        await tx.insert(schema.enterpriseMembers).values([...restored.values()]);
+        for (const m of restored.values()) {
+          if (m.userId === principal.userId) grantMembership(principal, m.enterpriseId, m.role);
+        }
       }
 
       // Insert parent-to-child.
@@ -212,5 +320,65 @@ export class DataExchangeService {
         await tx.insert(schema.capabilityActors).values(bundle.capabilityActors);
       }
     });
+  }
+
+  private async collisions(tx: Transaction, bundle: DataBundle): Promise<BundleIssue[]> {
+    const tables = [
+      ['enterprises', schema.enterprises, bundle.enterprises],
+      ['businessCapabilities', schema.businessCapabilities, bundle.businessCapabilities],
+      ['businessProcesses', schema.businessProcesses, bundle.businessProcesses],
+      ['processSteps', schema.processSteps, bundle.processSteps],
+      ['valueStreams', schema.valueStreams, bundle.valueStreams],
+      ['valueStreamStages', schema.valueStreamStages, bundle.valueStreamStages],
+      ['architectureDomains', schema.architectureDomains, bundle.architectureDomains],
+      ['organizationUnits', schema.organizationUnits, bundle.organizationUnits],
+      ['buildingBlocks', schema.buildingBlocks, bundle.buildingBlocks],
+      [
+        'buildingBlockOrganizationUnits',
+        schema.buildingBlockOrganizationUnits,
+        bundle.buildingBlockOrganizationUnits,
+      ],
+      [
+        'buildingBlockRealizations',
+        schema.buildingBlockRealizations,
+        bundle.buildingBlockRealizations,
+      ],
+      [
+        'buildingBlockCapabilities',
+        schema.buildingBlockCapabilities,
+        bundle.buildingBlockCapabilities,
+      ],
+      [
+        'buildingBlockRelationships',
+        schema.buildingBlockRelationships,
+        bundle.buildingBlockRelationships,
+      ],
+      ['informationObjects', schema.informationObjects, bundle.informationObjects],
+      ['capabilityInformation', schema.capabilityInformation, bundle.capabilityInformation],
+      ['actors', schema.actors, bundle.actors],
+      ['capabilityActors', schema.capabilityActors, bundle.capabilityActors],
+    ] as const;
+
+    const issues: BundleIssue[] = [];
+    for (const [name, table, rows] of tables) {
+      if (rows.length === 0) continue;
+      const existing = await tx
+        .select({ id: table.id })
+        .from(table)
+        .where(
+          inArray(
+            table.id,
+            rows.map((r) => r.id),
+          ),
+        );
+      for (const row of existing) {
+        issues.push({
+          table: name,
+          id: row.id,
+          message: 'id already exists in another enterprise',
+        });
+      }
+    }
+    return issues;
   }
 }

@@ -5,71 +5,36 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1782605874116,
-      "tag": "0000_glorious_stature",
+      "when": 1791881884990,
+      "tag": "0000_left_mongoose",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "7",
-      "when": 1783201845553,
-      "tag": "0001_fast_unus",
+      "when": 1791883423826,
+      "tag": "0001_magenta_thunderbolt",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1785015173204,
-      "tag": "0002_free_chameleon",
+      "when": 1791884372319,
+      "tag": "0002_loving_diamondback",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1785083931526,
-      "tag": "0003_charming_star_brand",
+      "when": 1791891805311,
+      "tag": "0003_violet_landau",
       "breakpoints": true
     },
     {
       "idx": 4,
       "version": "7",
-      "when": 1786894129572,
-      "tag": "0004_hesitant_shadow_king",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1786897373397,
-      "tag": "0005_white_pandemic",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1787337274330,
-      "tag": "0006_lazy_ares",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1787401501093,
-      "tag": "0007_kind_black_bolt",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1789215549742,
-      "tag": "0008_known_shen",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1789215960115,
-      "tag": "0009_flippant_thanos",
+      "when": 1791895564054,
+      "tag": "0004_chunky_luckman",
       "breakpoints": true
     }
   ]

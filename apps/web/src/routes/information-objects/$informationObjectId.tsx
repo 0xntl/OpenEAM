@@ -1,6 +1,6 @@
 import { gql } from '@apollo/client';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, notFound, useNavigate } from '@tanstack/react-router';
 import { ChevronLeft, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import {
@@ -8,11 +8,16 @@ import {
   InformationObjectFormSheet,
 } from '@/components/information-objects/information-object-form-sheet';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import {
   contentWidthClassName,
+  detailDescriptionClassName,
+  detailFactsClassName,
+  Fact,
   PageHeader,
   pageBackLinkClassName,
+  TitledCard,
 } from '@/components/ui/page-header';
 import {
   Select,
@@ -21,7 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useEnterprise } from '@/lib/enterprise';
+import { DetailSkeleton } from '@/components/ui/skeletons';
+import { useConfirm } from '@/lib/confirm';
+import { useEnterprise, WriteOnly } from '@/lib/enterprise';
 import type {
   InformationCapabilityLink,
   InformationObjectDetail,
@@ -33,6 +40,8 @@ import {
   INFORMATION_USAGE_STYLE,
   INFORMATION_USAGES,
 } from '@/lib/information-usage';
+import { formatValidity } from '@/lib/labels';
+import { toast } from '@/lib/toast';
 
 const INFORMATION_OBJECT_QUERY = gql`
   query InformationObject($id: String!) {
@@ -102,11 +111,18 @@ function LinkRow({ link, onRemove }: { link: InformationCapabilityLink; onRemove
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <span className="font-mono text-[10px] text-muted-foreground">
-          {link.validFrom ?? '…'} – {link.validTo ?? '…'}
+          {formatValidity(link.validFrom, link.validTo)}
         </span>
-        <Button variant="ghost" size="sm" onClick={onRemove} className="h-7 px-2">
-          <Trash2 className="size-3" />
-        </Button>
+        <WriteOnly>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onRemove}
+            aria-label={`Remove link to ${link.capabilityName}`}
+          >
+            <Trash2 />
+          </Button>
+        </WriteOnly>
       </div>
     </div>
   );
@@ -115,6 +131,7 @@ function LinkRow({ link, onRemove }: { link: InformationCapabilityLink; onRemove
 function InformationObjectDetailRoute() {
   const { informationObjectId } = Route.useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { enterprise } = useEnterprise();
   const { data, loading, error, refetch } = useQuery<InformationObjectData>(
     INFORMATION_OBJECT_QUERY,
@@ -149,17 +166,18 @@ function InformationObjectDetailRoute() {
   if (loading) {
     return (
       <div className={contentWidthClassName}>
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <DetailSkeleton />
       </div>
     );
   }
-  if (error || !info) {
+  if (error) {
     return (
       <div className={contentWidthClassName}>
-        <p className="text-sm text-destructive">Information object not found.</p>
+        <p className="text-sm text-destructive">Failed to load information object.</p>
       </div>
     );
   }
+  if (!info) throw notFound();
 
   const current = info.capabilities.filter((c) => c.validTo === null);
   const ended = info.capabilities.filter((c) => c.validTo !== null);
@@ -188,8 +206,9 @@ function InformationObjectDetailRoute() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete the information object "${info.name}"?`)) return;
+    if (!(await confirm({ title: `Delete "${info.name}"?`, destructive: true }))) return;
     await deleteInformationObject({ variables: { id: info.id } });
+    toast.success(`"${info.name}" deleted.`);
     navigate({ to: '/information-objects' });
   };
 
@@ -201,112 +220,128 @@ function InformationObjectDetailRoute() {
       <PageHeader
         back={
           <Link to="/information-objects" className={pageBackLinkClassName}>
-            <ChevronLeft className="size-3" /> Information
+            <ChevronLeft className="size-3.5" /> Information
           </Link>
         }
         title={info.name}
         action={
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={() => setSheetOpen(true)}>
-              Edit
-            </Button>
-            <Button variant="ghost" className="text-destructive" onClick={handleDelete}>
-              Delete
-            </Button>
-          </div>
+          <>
+            <WriteOnly>
+              <Button variant="ghost" size="sm" onClick={() => setSheetOpen(true)}>
+                Edit
+              </Button>
+            </WriteOnly>
+            <WriteOnly>
+              <Button variant="destructive" size="sm" onClick={handleDelete}>
+                Delete
+              </Button>
+            </WriteOnly>
+          </>
         }
       />
 
-      {info.description && <p className="text-sm text-muted-foreground">{info.description}</p>}
+      {info.description && <p className={detailDescriptionClassName}>{info.description}</p>}
 
-      <p className="pt-1 text-sm">
+      {/* Ownership is the one fact that matters here: it says who is
+          accountable for this information being correct. Its absence is a
+          problem, so it is shown as one rather than left blank. */}
+      <div className={detailFactsClassName}>
         {owner ? (
-          <span className="text-muted-foreground">
-            Owned by <span className="text-foreground">{owner.capabilityName}</span> — accountable
-            for it being correct.
-          </span>
+          <Fact
+            label="Owner"
+            value={
+              <Link
+                to="/capabilities/$capabilityId"
+                params={{ capabilityId: owner.capabilityId }}
+                className="hover:underline"
+              >
+                {owner.capabilityName}
+              </Link>
+            }
+          />
         ) : (
-          <span className="text-amber-700 dark:text-amber-400">
-            No capability owns this yet. Nobody is accountable for it being correct.
-          </span>
+          <Fact
+            label="Owner"
+            value="none — nobody is accountable for it being correct"
+            tone="warning"
+          />
         )}
-      </p>
+      </div>
 
-      <section className="flex flex-col gap-3 pt-4">
-        <h2 className="text-sm font-medium">Capabilities</h2>
-        <p className="text-xs text-muted-foreground">
-          Which capabilities touch this information, and how.
-        </p>
-
+      <TitledCard
+        title="Capabilities"
+        subtitle="Which capabilities touch this information, and how"
+      >
         {current.length > 0 ? (
-          <div className="flex flex-col gap-2">
-            {current.map((link) => (
-              <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
-            ))}
-          </div>
+          current.map((link) => (
+            <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
+          ))
         ) : (
-          <p className="text-xs italic text-muted-foreground">Not linked to any capability yet.</p>
+          <EmptyState label="Not linked to any capability yet" hint="add one below" />
         )}
 
-        <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
-          <label
-            htmlFor="info-link-capability"
-            className="flex min-w-48 flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            Capability
-            <Select value={capabilityId} onValueChange={setCapabilityId}>
-              <SelectTrigger id="info-link-capability" className="w-full">
-                <SelectValue placeholder="Choose…" />
-              </SelectTrigger>
-              <SelectContent>
-                {available.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+        <WriteOnly>
+          <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
+            <label
+              htmlFor="info-link-capability"
+              className="flex min-w-48 flex-1 flex-col gap-1 text-xs font-medium text-muted-foreground"
+            >
+              Capability
+              <Select value={capabilityId} onValueChange={setCapabilityId}>
+                <SelectTrigger id="info-link-capability" className="w-full">
+                  <SelectValue placeholder="Choose…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {available.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
 
-          <label
-            htmlFor="info-link-usage"
-            className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            Usage
-            <Select value={usage} onValueChange={(v) => setUsage(v as InformationUsage)}>
-              <SelectTrigger id="info-link-usage" className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {INFORMATION_USAGES.map((u) => (
-                  <SelectItem key={u} value={u}>
-                    {INFORMATION_USAGE_LABEL[u]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+            <label
+              htmlFor="info-link-usage"
+              className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+            >
+              Usage
+              <Select value={usage} onValueChange={(v) => setUsage(v as InformationUsage)}>
+                <SelectTrigger id="info-link-usage" className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INFORMATION_USAGES.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {INFORMATION_USAGE_LABEL[u]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
 
-          <label
-            htmlFor="info-link-valid-from"
-            className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
-          >
-            From
-            <Input
-              id="info-link-valid-from"
-              type="date"
-              className="w-40"
-              value={validFrom}
-              onChange={(e) => setValidFrom(e.target.value)}
-            />
-          </label>
+            <label
+              htmlFor="info-link-valid-from"
+              className="flex flex-col gap-1 text-xs font-medium text-muted-foreground"
+            >
+              From
+              <Input
+                id="info-link-valid-from"
+                type="date"
+                className="w-40"
+                value={validFrom}
+                onChange={(e) => setValidFrom(e.target.value)}
+              />
+            </label>
 
-          <Button onClick={handleLink} disabled={!capabilityId}>
-            Add
-          </Button>
-        </div>
-
-        <p className="text-xs text-muted-foreground">{INFORMATION_USAGE_HINT[usage]}</p>
+            <Button onClick={handleLink} disabled={!capabilityId}>
+              Add
+            </Button>
+            <p className="basis-full text-xs text-muted-foreground">
+              {INFORMATION_USAGE_HINT[usage]}
+            </p>
+          </div>
+        </WriteOnly>
 
         {linkError && <p className="text-sm text-destructive">{linkError.message}</p>}
 
@@ -315,14 +350,14 @@ function InformationObjectDetailRoute() {
             <summary className="cursor-pointer text-xs text-muted-foreground">
               Ended ({ended.length})
             </summary>
-            <div className="flex flex-col gap-2 pt-2 opacity-60">
+            <div className="flex flex-col gap-1.5 pt-2 opacity-60">
               {ended.map((link) => (
                 <LinkRow key={link.linkId} link={link} onRemove={() => handleRemove(link.linkId)} />
               ))}
             </div>
           </details>
         )}
-      </section>
+      </TitledCard>
 
       {enterprise && (
         <InformationObjectFormSheet

@@ -162,6 +162,8 @@ The current use case. Full detail.
 - The service-layer rules apply on the import path: architecture level only on ABBs, realizations pointing the right way round, at least one domain per block, no overlapping intervals
 - A rejected import changes nothing; it already runs in a transaction, and the message should make clear nothing was written
 
+*Shipped: `data-bundle.validator.ts` reports every violation with table and id before the transaction, and id collisions with other enterprises as a 400 inside it (D-16, D-18). "No overlapping intervals" is enforced as "one open row per pair", the same rule the services apply; full interval-overlap checking is still open everywhere (see INV-5 in ARCHITECTURE.md).*
+
 ### US-1.12 · Tell two enterprises apart
 
 > As an **architect**, I want to **distinguish enterprises with similar names in
@@ -178,6 +180,19 @@ The current use case. Full detail.
 
 - Either the quadrants are backed by real data (People can reuse US-1.1's people), or they come out of the model, the API, and the page
 - Whichever way it goes, the GraphQL schema stops advertising fields that always return an empty list
+
+### US-1.14 · Recognise a block at a glance
+
+> As an **architect**, I want to **give a building block an icon — the
+> product's logo or a generic glyph**, so that **a list or a diagram reads by
+> shape before anyone reads the names**.
+
+- An icon is picked from a search over product logos and generic icons, or removed again, in the block's own form
+- The icon shows in the list, on the detail page and on the block's node in the landscape diagram
+- An icon survives export and import; one this instance cannot draw shows a neutral placeholder instead of breaking anything
+
+*Shipped: Iconify ids on `building_blocks.icon`, served from Simple Icons and
+Lucide by the API itself (D-22).*
 
 ---
 
@@ -218,7 +233,8 @@ The current use case. Full detail.
 
 - **US-7.1** — As an *architect*, I want to export a view as a file I can send, so that a stakeholder can read it without an account.
 - **US-7.2** — As an *architect*, I want to share a link to a saved viewpoint, so that everyone discusses the same cut of the model.
-- **US-7.3** — As an *administrator*, I want real users and permissions, so that sharing doesn't mean sharing everything.
+- **US-7.3** — As an *administrator*, I want roles within an enterprise, so that sharing doesn't mean sharing everything. *(Shipped: owner, editor and viewer per enterprise over a permission catalogue, D-20.)*
+- **US-7.4** — As the *person who installed OpenEAM*, I want to run the instance — create and deactivate accounts, let people recover a password, open or close sign-up, and see which enterprise has which members — without touching the database. *(Shipped: the first account is the instance admin, D-17; passwords are set by their owners through one-time setup links, D-19.)*
 
 ## UC-8 · Reference the same real thing from two enterprises
 

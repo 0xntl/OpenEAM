@@ -1,2 +1,0 @@
-CREATE TYPE "public"."capability_direction" AS ENUM('invest', 'sustain', 'commodity', 'sunset');--> statement-breakpoint
-ALTER TABLE "business_capabilities" ADD COLUMN "direction" "capability_direction";

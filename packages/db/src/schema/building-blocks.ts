@@ -1,10 +1,19 @@
-import { randomUUID } from 'node:crypto';
-import { relations } from 'drizzle-orm';
-import { date, index, pgEnum, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import {
+  check,
+  date,
+  index,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { architectureDomains } from './architecture-domains';
 import { businessCapabilities } from './business-capabilities';
 import { enterprises } from './enterprises';
-import { timestamps } from './helpers';
+import { timestamps, validityCheck } from './helpers';
 import { organizationUnits } from './organization-units';
 
 export const buildingBlockKind = pgEnum('building_block_kind', ['architecture', 'solution']);
@@ -44,22 +53,33 @@ export const buildingBlockRelationshipType = pgEnum('building_block_relationship
 export const buildingBlocks = pgTable(
   'building_blocks',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    enterpriseId: text('enterprise_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    enterpriseId: uuid('enterprise_id')
       .notNull()
       .references(() => enterprises.id, { onDelete: 'cascade' }),
     kind: buildingBlockKind('kind').notNull(),
     name: text('name').notNull(),
     description: text('description'),
+    // An Iconify icon id ("simple-icons:postgresql", "lucide:database") the
+    // user picked to make the block recognisable in lists and diagrams. A
+    // stable id, never markup or a URL; the API validates the shape and the
+    // collection (D-22). Null means no icon chosen.
+    icon: text('icon'),
     architectureLevel: architectureLevel('architecture_level'),
     lifecyclePhase: lifecyclePhase('lifecycle_phase').notNull().default('planned'),
     validFrom: date('valid_from'),
     validTo: date('valid_to'),
     ...timestamps,
   },
-  (t) => [index('building_blocks_enterprise_id_idx').on(t.enterpriseId)],
+  (t) => [
+    index('building_blocks_enterprise_id_idx').on(t.enterpriseId),
+    validityCheck('building_blocks', t.validFrom, t.validTo),
+    // INV-3 at the database: a level only on architecture building blocks.
+    check(
+      'building_blocks_level_only_for_architecture_check',
+      sql`${t.architectureLevel} IS NULL OR ${t.kind} = 'architecture'`,
+    ),
+  ],
 );
 
 // Domain assignment is classification, not history — no validity interval.
@@ -67,10 +87,10 @@ export const buildingBlocks = pgTable(
 export const buildingBlockArchitectureDomains = pgTable(
   'building_block_architecture_domains',
   {
-    buildingBlockId: text('building_block_id')
+    buildingBlockId: uuid('building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
-    architectureDomainId: text('architecture_domain_id')
+    architectureDomainId: uuid('architecture_domain_id')
       .notNull()
       .references(() => architectureDomains.id, { onDelete: 'cascade' }),
   },
@@ -87,13 +107,11 @@ export const buildingBlockArchitectureDomains = pgTable(
 export const buildingBlockOrganizationUnits = pgTable(
   'building_block_organization_units',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    buildingBlockId: text('building_block_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    buildingBlockId: uuid('building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
-    organizationUnitId: text('organization_unit_id')
+    organizationUnitId: uuid('organization_unit_id')
       .notNull()
       .references(() => organizationUnits.id, { onDelete: 'cascade' }),
     validFrom: date('valid_from'),
@@ -103,6 +121,7 @@ export const buildingBlockOrganizationUnits = pgTable(
   (t) => [
     index('building_block_organization_units_building_block_id_idx').on(t.buildingBlockId),
     index('building_block_organization_units_organization_unit_id_idx').on(t.organizationUnitId),
+    validityCheck('building_block_organization_units', t.validFrom, t.validTo),
   ],
 );
 
@@ -112,13 +131,11 @@ export const buildingBlockOrganizationUnits = pgTable(
 export const buildingBlockRealizations = pgTable(
   'building_block_realizations',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    architectureBuildingBlockId: text('architecture_building_block_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    architectureBuildingBlockId: uuid('architecture_building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
-    solutionBuildingBlockId: text('solution_building_block_id')
+    solutionBuildingBlockId: uuid('solution_building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
     validFrom: date('valid_from'),
@@ -128,6 +145,11 @@ export const buildingBlockRealizations = pgTable(
   (t) => [
     index('building_block_realizations_architecture_id_idx').on(t.architectureBuildingBlockId),
     index('building_block_realizations_solution_id_idx').on(t.solutionBuildingBlockId),
+    validityCheck('building_block_realizations', t.validFrom, t.validTo),
+    check(
+      'building_block_realizations_distinct_ends_check',
+      sql`${t.architectureBuildingBlockId} <> ${t.solutionBuildingBlockId}`,
+    ),
   ],
 );
 
@@ -135,13 +157,11 @@ export const buildingBlockRealizations = pgTable(
 export const buildingBlockCapabilities = pgTable(
   'building_block_capabilities',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    buildingBlockId: text('building_block_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    buildingBlockId: uuid('building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
-    capabilityId: text('capability_id')
+    capabilityId: uuid('capability_id')
       .notNull()
       .references(() => businessCapabilities.id, { onDelete: 'cascade' }),
     validFrom: date('valid_from'),
@@ -151,6 +171,7 @@ export const buildingBlockCapabilities = pgTable(
   (t) => [
     index('building_block_capabilities_building_block_id_idx').on(t.buildingBlockId),
     index('building_block_capabilities_capability_id_idx').on(t.capabilityId),
+    validityCheck('building_block_capabilities', t.validFrom, t.validTo),
   ],
 );
 
@@ -162,13 +183,11 @@ export const buildingBlockCapabilities = pgTable(
 export const buildingBlockRelationships = pgTable(
   'building_block_relationships',
   {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
-    sourceBuildingBlockId: text('source_building_block_id')
+    id: uuid('id').primaryKey().defaultRandom(),
+    sourceBuildingBlockId: uuid('source_building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
-    targetBuildingBlockId: text('target_building_block_id')
+    targetBuildingBlockId: uuid('target_building_block_id')
       .notNull()
       .references(() => buildingBlocks.id, { onDelete: 'cascade' }),
     type: buildingBlockRelationshipType('type').notNull().default('depends_on'),
@@ -180,6 +199,16 @@ export const buildingBlockRelationships = pgTable(
   (t) => [
     index('building_block_relationships_source_id_idx').on(t.sourceBuildingBlockId),
     index('building_block_relationships_target_id_idx').on(t.targetBuildingBlockId),
+    validityCheck('building_block_relationships', t.validFrom, t.validTo),
+    // INV-4 at the database.
+    check(
+      'building_block_relationships_no_self_check',
+      sql`${t.sourceBuildingBlockId} <> ${t.targetBuildingBlockId}`,
+    ),
+    // INV-5 at the database: one *open* hosted_on edge per source block.
+    uniqueIndex('building_block_relationships_one_open_host_idx')
+      .on(t.sourceBuildingBlockId)
+      .where(sql`${t.type} = 'hosted_on' AND ${t.validTo} IS NULL`),
   ],
 );
 

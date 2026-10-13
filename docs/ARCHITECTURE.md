@@ -9,23 +9,28 @@ exist to protect.
 
 ## Shape
 
-A pnpm workspace, three packages, ~10,500 lines.
+A pnpm workspace, three packages, ~21,000 lines.
 
 | Package | What it is | Size |
 | --- | --- | --- |
-| `packages/db` | Drizzle schema, migrations, client. The metamodel lives here. | ~615 lines |
-| `apps/api` | NestJS + Apollo. Code-first GraphQL, one REST controller. | ~2,200 lines |
-| `apps/web` | React 19 + Vite + TanStack Router SPA. | ~7,700 lines |
+| `packages/db` | Drizzle schema, migrations, client, startup migrator. The metamodel lives here. | ~1,100 lines |
+| `apps/api` | NestJS + Apollo. Code-first GraphQL, three REST controllers (data exchange, icons, branding), sessions, admin. | ~6,300 lines |
+| `apps/web` | React 19 + Vite + TanStack Router SPA. | ~13,900 lines |
 
-Postgres runs in Compose; both apps run from `pnpm dev`. There are no app
-containers yet — see [BACKLOG.md](BACKLOG.md).
+For development, Postgres runs in Compose and both apps run from `pnpm dev`.
+For self-hosting, `docker compose --profile app up` adds an API container
+(applies migrations, then starts) and a web container (nginx serving the SPA and
+proxying `/graphql`, `/health` and `/api` to the API, so the browser sees one
+origin). See [Deploying](#deploying).
 
 ## The metamodel (`packages/db`)
 
-19 tables and 8 enums across ten schema files, one per subject area. Read the
-comments in `packages/db/src/schema/` before changing anything there — they
-explain *why* each shape was chosen, and several of them encode decisions
-recorded in [DECISIONS.md](DECISIONS.md).
+25 tables and 12 enums across eleven schema files, one per subject area.
+[DATABASE.md](DATABASE.md) lists every table, column, constraint and index, and
+which invariants the database enforces itself. Read the comments in
+`packages/db/src/schema/` before changing anything there — they explain *why*
+each shape was chosen, and several of them encode decisions recorded in
+[DECISIONS.md](DECISIONS.md).
 
 The vocabulary — ABB, SBB, realization, value stream, architecture domain — is
 defined in [GLOSSARY.md](GLOSSARY.md). It is TOGAF's, used deliberately; getting
@@ -49,35 +54,136 @@ deliberately has no validity interval — it is a replace-all set. Whether that 
 the right call is an open question; see [DECISIONS.md](DECISIONS.md).
 
 Migrations are generated with `pnpm db:generate` and applied with
-`pnpm db:migrate`. Ten are committed. Generated files under
+`pnpm db:migrate`. One baseline is committed (D-18); every change from the
+first release on is a new one. The API container applies them on startup
+through `packages/db/src/migrate.ts` (drizzle-orm's runtime migrator, same
+files, no drizzle-kit in the image). Generated files under
 `packages/db/drizzle/meta/` are formatted by drizzle-kit and still have to pass
 repo-wide Biome — run `pnpm lint` at the root, never a scoped check.
 
 ## The API (`apps/api`)
 
-Ten feature modules, each `*.module.ts` / `*.service.ts` / `*.resolver.ts` /
-`*.model.ts`. Services own the business rules; resolvers are thin.
+Eleven feature modules, each `*.module.ts` / `*.service.ts` / `*.resolver.ts` /
+`*.model.ts`, plus `auth/` (sessions, guard), `admin/` (instance administration,
+branding) and `icons/` (the icon endpoint, REST, below). Services own the business rules;
+resolvers are thin.
+
+Environment is read once, in `config.ts`, through a zod schema; a wrong or
+missing variable fails at startup with the offending name, not at the first
+request. GraphiQL and introspection are on only outside `NODE_ENV=production`.
+
+### Who is asking
+
+Every resolver and controller sits behind a global guard (`auth/auth.guard.ts`)
+unless marked `@Public()` — that is `ping`, `/health`, `authStatus`, `me`, and
+the sign-in/sign-up mutations. The guard resolves the session once per request
+and attaches a **Principal** (`auth/principal.ts`) to it: the user plus the ids
+of every enterprise they are a member of.
+
+Accounts are local (email + scrypt-hashed password, no external identity
+provider yet — [DECISIONS.md](DECISIONS.md) D-15) and carry an **instance
+role**: the first account ever created is `admin`, everyone after is `user`
+until an admin says otherwise (D-17). `admin/` holds what admins can do:
+accounts (create, deactivate, promote, delete, issue a setup link) and the
+runtime sign-up switch and the instance name in `instance_settings`, the
+branding images in `instance_assets` (D-23; `admin/branding.controller.ts`
+serves them at `GET /api/branding/{logo,logo-dark,icon}` and takes `PUT`
+uploads, bytes in the body; `authStatus` carries name and image versions, so
+the sign-in page is branded before anyone signs in). Inside enterprises an admin is
+an implicit owner of every one (D-21) — the session resolver adds those
+memberships, so the rest of the code sees an ordinary owner. An admin never
+sets or sees a password: a new account has none
+until its person opens the one-time **setup link** (`/setup?token=…`, public,
+seven days, single use) and chooses one, and a forgotten password is recovered
+the same way (D-19, `password_setup_tokens`). Admin-only resolvers are marked `@AdminOnly()`, checked by the
+same guard. An admin does *not* read an enterprise's model by virtue of the
+role; they grant themselves membership, which every member of that enterprise
+can see. A session is a random token
+whose SHA-256 is stored in `sessions`; the token travels in an httpOnly,
+SameSite=Lax cookie for the browser, or as `Authorization: Bearer …` for
+scripts. Sign-out deletes the row. Sign-in and sign-up are rate-limited per
+client address.
+
+Services take the principal as their first argument and scope every read by
+`principal.enterpriseIds` (INV-16). List queries that name an enterprise call
+`assertEnterpriseAccess()` and get a 403; lookups by id fold the membership
+check into the where clause, so an id from someone else's enterprise reads as
+not found rather than as forbidden. Rows without an `enterprise_id` of their
+own (links, relationships) are scoped through their parent.
+
+Writes go one step further (D-20). `auth/policy.ts` holds the **permission
+catalogue** — `model.read`, `model.write`, `data.export`, `data.import`,
+`enterprise.update`, `enterprise.delete`, `members.manage` — and the three
+**roles** that bundle it: owner (all), editor (read, write, export), viewer
+(read, export). A membership carries a role; every mutation calls
+`assertCan(principal, permission, enterpriseId)` and never asks about a role,
+so the bundles are the only place a role means anything. The web reads the
+caller's `myPermissions` off the enterprise and hides what would fail.
 
 GraphQL is **code-first**: models carry decorators and Nest generates the SDL at
-runtime into `apps/api/schema.gql` (371 lines), which is committed so schema
+runtime into `apps/api/schema.gql` (~640 lines), which is committed so schema
 changes are visible in a diff. If you change a model, the SDL changes — commit it.
 
 `data-exchange` is the odd module out: a REST controller (`GET /api/data-exchange/export`,
 `POST /api/data-exchange/import`) validating against a zod schema in
-`data-bundle.schema.ts`. Import replaces exactly the enterprises carried in the
-bundle and touches nothing else.
+`data-bundle.schema.ts`. Export without a parameter returns the caller's
+enterprises, not the whole database. Import replaces exactly the enterprises
+carried in the bundle and touches nothing else; an enterprise that already
+exists may only be replaced by one of its members, and memberships survive the
+replace (they describe the instance, not the model, so they are not in the
+bundle).
 
-### Where the rules live, and where they don't
+`icons` is the other REST module, public like `/health`:
+`GET /api/icons/collections`, `/api/icons/search?q=…` for the picker, and
+`/api/icons/{prefix}.json?icons=a,b` in the Iconify API's format, so
+`@iconify/react` treats this API as its icon server. The sets live in memory;
+`icons/icon-id.ts` holds the allowlist that mutations and the importer check
+(D-22).
 
-Service methods enforce the invariants below. **The importer does not.** It writes
-rows directly, bypassing every rule the services apply — and it is also the
-restore path, so a malformed bundle can leave a model that looks fine and lies.
-That gap is known and tracked (US-1.11, roadmap T2.6).
+### Where the rules live
 
-A second known gap: services scope `findAll` by enterprise, then scope `findOne`,
-`update` and `delete` by bare id. Any id from any enterprise is readable and
-deletable. Harmless while there is one user; it must close before there are two
-(roadmap T2.5).
+Service methods enforce the invariants below, one row at a time. The importer
+does not go through the services — a bundle is a snapshot, and replaying it as
+edits would lose ids and timestamps ([DECISIONS.md](DECISIONS.md) D-16) — so it
+runs `data-bundle.validator.ts` over the whole bundle before the transaction:
+every row must belong to one of the bundle's own enterprises, every reference
+must land inside the bundle and in the same enterprise, and the temporal and
+structural invariants (INV-1 … INV-15) are checked with the same functions the
+services use, from `common/invariants.ts`. All violations come back in one
+response, each with table and id. Inside the transaction, after the bundle's
+enterprises are deleted and before anything is inserted, ids are checked
+against what remains in the database (INV-10): a collision with another
+enterprise is a readable 400 naming the id, and the transaction rolls back.
+
+### Security measures, and what each one is for
+
+- **Sessions** — random 32-byte token, SHA-256 stored, 30-day expiry, deleted
+  on sign-out and swept per account on sign-in. Cookie is httpOnly and
+  SameSite=Lax; `AUTH_COOKIE_SECURE` adds Secure behind TLS.
+- **CSRF** — three independent layers: the SameSite cookie, Apollo's
+  preflight requirement (no `text/plain` or GET mutations, batching off), and
+  `auth/origin-check.ts`, which refuses any state-changing request whose
+  `Origin` is neither `WEB_ORIGIN` nor the API's own host.
+- **Brute force** — `@nestjs/throttler` per client address on sign-in and
+  sign-up (10/min), plus an in-memory per-account lockout (10 failures in 15
+  minutes) that does not depend on the address, because `X-Forwarded-For` can
+  be forged by a client on a trusted network. `TRUST_PROXY` says how many
+  proxy hops to believe; 0 ignores the header.
+- **Enumeration** — wrong password and unknown account produce the same
+  message and comparable timing (a throwaway hash is verified when the account
+  does not exist). Sign-up does reveal whether an email is taken, but only
+  while sign-up is open.
+- **Headers** — `helmet` on the API (CSP only in production, GraphiQL needs
+  a CDN in dev), and nosniff / frame-deny / referrer / permissions headers on
+  the nginx in front of the SPA. The SPA has no CSP yet; see BACKLOG.
+- **Production** — GraphiQL and introspection off, stack traces out of error
+  responses, body limit 5 MB, the API not published outside the Compose
+  network.
+
+What is deliberately *not* done, and why, is in [DECISIONS.md](DECISIONS.md)
+D-15. Tests for these measures are the point of roadmap T1.3/T1.4; until then
+the checks are a script run by hand (see the commit that introduced them).
+
 
 ## The web app (`apps/web`)
 
@@ -89,27 +195,58 @@ deletable. Harmless while there is one user; it must close before there are two
   with a create button, a detail page, and one shared `*-form-sheet.tsx` the list
   opens in create mode and the detail page opens in edit mode. `actors` and
   `information-objects` are the most recent pair to copy from.
+- **Every detail page reads the same way**: `PageHeader` (back link, title,
+  badge, Edit/Delete), description, a row of `Fact` chips, then `TitledCard`s
+  with rows in the shared item style and an `EmptyState` when empty. The
+  pieces live in `components/ui/page-header.tsx`; a new page composes them.
 - **Deleting** evicts the row from the Apollo cache in the mutation's `update`,
   then `cache.gc()` — without it, navigating back shows a list still containing
   the deleted row.
-- **Data** — Apollo Client against `/graphql`, proxied by Vite in dev.
+- **Data** — Apollo Client against `/graphql`, proxied by Vite in dev, with
+  `credentials: 'include'` so the session cookie travels. An `UNAUTHENTICATED`
+  error from any operation other than sign-in tells `lib/auth.tsx` the session
+  is gone, which re-reads `me` and drops back to the sign-in page.
+- **Session gate** — `routes/__root.tsx` renders the sign-in page until `me`
+  returns a user, then the shell. No redirect, so the URL someone opened
+  survives signing in. `EnterpriseProvider` lives below the gate.
+- **Feedback and navigation** — `lib/toast.tsx` (bottom-right toasts for
+  saves, deletes and the errors of button-triggered mutations, fed by the
+  Apollo error link), `lib/confirm.tsx` (one promise-based confirmation dialog
+  for everything destructive; nothing calls the browser's own `confirm`), and
+  `components/command-palette.tsx` (⌘K / Ctrl+K: pages and every object of
+  the current enterprise, fuzzy-matched). Lists load as skeletons
+  (`ui/skeletons.tsx`) and show an `EmptyCard` with the first step when empty.
 - **Enterprise scope** — `src/lib/enterprise.tsx` holds the selected enterprise in
   a context, persisted in `localStorage` under `enterpriseId`. Every scoped page
   reads it.
 - **Landscape diagram** — diagram-js with elkjs auto-layout. Read-only and
-  recomputed on every load; it is not a persisted document.
+  recomputed on every load; it is not a persisted document. Model icons are
+  fetched while elk lays out and inlined into the SVG, so the renderer, which
+  draws synchronously, never waits for them.
 - **Process diagrams** — bpmn-js. Here the diagram *is* the source of truth:
   `bpmn_xml` is stored, and `process_steps` are re-synced from it on every save.
-- **Icons** — `lucide-react`, and only `lucide-react`. See [DECISIONS.md](DECISIONS.md).
+- **Branding** — `components/brand/brand.tsx`: `Brand` (the uploaded logo,
+  its dark variant on a dark page, or the product's mark and name),
+  `BrandIcon` (the collapsed sidebar's trigger), `BrandLoader` (the mark
+  animated, for the splash and lazily loaded diagrams), `PoweredBy`, and
+  `useDocumentBranding` for tab title and favicon. `lib/auth.tsx` derives
+  `branding` from `authStatus` (D-23). No page spells out "OpenEAM" itself.
+- **Icons** — UI icons from `lucide-react` only (D-7). Model icons, the icon a
+  person picks for a building block, are Iconify ids drawn by
+  `components/icons/model-icon.tsx` and chosen in `icon-picker.tsx`;
+  `lib/icons.ts` points `@iconify/react` at `/api/icons` and gives the
+  landscape renderer raw SVG from the same cache (D-22).
 - **Sidebar** — defaults to collapsed/icon-only. That is the primary state, not a
   small-screen fallback; design nav for icon+tooltip wayfinding first.
 
 ## Invariants
 
 Rules the service layer enforces, or that the model depends on. Each has an id so
-a test, a review comment or a commit message can point at one. They are currently
-enforced in code and described in comments; turning them into tests is roadmap
-T1.4.
+a test, a review comment or a commit message can point at one. Where Postgres
+can express a rule it does, as a CHECK, a partial unique index or a composite
+foreign key — the table in [DATABASE.md](DATABASE.md) says which; the service
+layer still checks first so the user gets a message, not a constraint name.
+Turning them into tests is roadmap T1.4.
 
 | Id | Rule | Enforced where |
 | --- | --- | --- |
@@ -128,6 +265,9 @@ T1.4.
 | **INV-13** | An actor's `organizationUnitId` is set only when `kind = 'team'`, and the unit belongs to the same enterprise. Without it, teams end up modelled twice under two names. | `actors.service.ts` |
 | **INV-14** | A capability and an actor linked together belong to the same enterprise. | `actors.service.ts` |
 | **INV-15** | A capability has at most one *open* link to the same actor. | `actors.service.ts` |
+| **INV-16** | A request reads only enterprises its principal is a member of, and writes only what the member's role permits (D-20). A non-member sees nothing of an enterprise; instance admins are implicit owners of all of them (D-21). Creating an enterprise makes the creator its first member; the last member cannot be removed, and an account that is the last member of any enterprise cannot be deleted. | Every service, via `principal.enterpriseIds`; `AuthGuard`; `admin.service.ts` |
+| **INV-17** | There is always at least one active instance admin. The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
+| **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed; delete the enterprise instead. | `enterprises.service.ts` |
 
 Two sharp edges in the current implementations, so you are not surprised by them:
 
@@ -135,9 +275,10 @@ Two sharp edges in the current implementations, so you are not surprised by them
   when an existing one is *unbounded* (`validTo` null). It does not check full
   interval overlap. Closing the old edge before opening a new one is the caller's
   responsibility, as with every temporal link here.
-- **INV-10 is enforced by Postgres, not by us.** Violating it surfaces as a
-  duplicate-key 500 from the import endpoint rather than a readable error. Example
-  bundles avoid it by deriving ids as UUIDv5 from a readable key; see
+- **INV-10 is enforced by Postgres, not by us.** The bundle validator reports
+  an id collision as a 400 naming the id; if a constraint fires anyway,
+  `common/pg-error.filter.ts` turns it into a 409. Example bundles avoid
+  collisions by deriving ids as UUIDv5 from a readable key; see
   [DECISIONS.md](DECISIONS.md).
 
 ## Example bundles
@@ -171,3 +312,25 @@ those three currently prove that the code compiles, not that it works.
 
 `.claude/skills/verify/SKILL.md` has the details for driving the running app
 headlessly.
+
+## Deploying
+
+```bash
+cp .env.example .env               # set POSTGRES_PASSWORD, OPENEAM_PORT, OPENEAM_ORIGIN
+docker compose --profile app up -d --build
+```
+
+Three containers: Postgres, the API (`apps/api/Dockerfile`: multi-stage,
+production dependencies only, runs migrations then `node dist/main.js` as an
+unprivileged user) and the web server (`apps/web/Dockerfile`: Vite build served
+by nginx, `apps/web/nginx.conf` proxies the API paths). Only the web container
+publishes a port. CI builds both images on every push so a broken Dockerfile
+fails there.
+
+Open the instance and create the first account. It can always be created, it
+is the instance admin, and it inherits every enterprise already in the
+database. From the Administration page the admin creates further accounts (or
+opens sign-up), and members add colleagues to an enterprise by email from the
+enterprise's edit sheet. Set `AUTH_COOKIE_SECURE=true` once the instance is
+behind TLS. `AUTH_ALLOW_SIGNUP` only seeds the sign-up switch on first start;
+afterwards the Administration page owns it.
