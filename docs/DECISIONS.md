@@ -665,7 +665,7 @@ on the same host from the same `deploy/compose.yml`, differing only in their
 Actions deploys over SSH — staging on every push to `main` pinned to an
 immutable `sha-…` tag, production on a `v*` tag after a reviewer approves —
 to a `deploy` user whose key's forced command is `deploy/bin/deploy.sh`.
-Prod is dumped before every deploy; a timer dumps it nightly, `age` encrypts,
+Prod is dumped before every deploy; cron dumps it nightly, `age` encrypts,
 `rclone` moves the dump off the host.
 
 **Why images from CI:** the server stays a machine that runs containers and

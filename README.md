@@ -21,7 +21,7 @@ answers.
 
 ## What works today
 
-- Business capabilities, value streams with stages, business processes with BPMN modelling
+- Business capabilities, value streams with stages, business processes with BPMN modelling, actors, information objects
 - Building blocks (architecture and solution), typed relationships, auto-laid-out landscape diagram, icons
 - Export and import of a whole enterprise as a versioned JSON bundle, for backups and for moving between instances
 - Accounts with roles per enterprise (owner, editor, viewer); the first account is the instance admin

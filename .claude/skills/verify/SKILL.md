@@ -13,7 +13,7 @@ description: How to launch and verify the OpenEAM app end-to-end (web + api + db
 
 ## Drive the UI headlessly
 
-No Playwright browsers are installed. Use `playwright-core` with a system Chromium-based browser instead (no download) — on this Linux box that is `/usr/bin/google-chrome-stable`; on Windows, `channel: 'msedge'`:
+No Playwright browsers are installed. Use `playwright-core` with a system Chromium-based browser instead (no download): on macOS `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, on Linux `/usr/bin/google-chrome-stable`, on Windows `channel: 'msedge'`:
 
 ```js
 import { chromium } from 'playwright-core';

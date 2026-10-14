@@ -375,6 +375,8 @@ copies of it with different `.env` files on one host:
              backups/   nightly dumps, age-encrypted, rclone'd off-host
 ```
 
+Everything but `bin/` is owned by the `deploy` user, who runs the stacks.
+
 Each file's header says what it expects: the `.env` variables in the two
 compose files, the server layout and the forced-command key in `deploy.sh`,
 backup settings, cron line and the restore pipeline in `backup.sh`, the

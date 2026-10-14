@@ -46,13 +46,18 @@ dump() {
   docker compose exec -T postgres sh -c 'pg_dump --no-owner --no-privileges -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip -9
 }
 
+# Written under a temporary name and renamed at the end, so a failure part-way
+# (pipefail catches pg_dump too) never leaves something that looks like a backup.
+[[ -n "$BACKUP_AGE_RECIPIENT" ]] && file="$file.age"
+part="$file.part"
+trap 'rm -f "$part"' EXIT
+umask 077
 if [[ -n "$BACKUP_AGE_RECIPIENT" ]]; then
-  file="$file.age"
-  dump | age -r "$BACKUP_AGE_RECIPIENT" -o "$file"
+  dump | age -r "$BACKUP_AGE_RECIPIENT" -o "$part"
 else
-  dump >"$file"
+  dump >"$part"
 fi
-chmod 600 "$file"
+mv "$part" "$file"
 echo "wrote $file ($(du -h "$file" | cut -f1))"
 
 if [[ -n "$BACKUP_RCLONE_REMOTE" ]]; then

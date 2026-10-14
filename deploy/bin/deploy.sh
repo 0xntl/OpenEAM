@@ -11,11 +11,12 @@
 #   ssh deploy@host "staging sha-1a2b3c4"
 #   ssh deploy@host "prod v0.3.0"
 #
-# Expects, placed by hand once: /srv/openeam/{prod,staging}/compose.yml + .env,
-# /srv/openeam/proxy, this script and backup.sh root-owned in /srv/openeam/bin,
-# a `deploy` user in the docker group (root-equivalent, hence the forced
-# command), and the external `edge` network. The GitHub side is in the
-# header of .github/workflows/ci.yml.
+# Expects, placed by hand once: /srv/openeam/{prod,staging}/compose.yml + .env
+# and /srv/openeam/{proxy,backups}, all owned by the `deploy` user (the
+# script rewrites .env and backup.sh writes dumps); this script and backup.sh
+# root-owned in /srv/openeam/bin; `deploy` in the docker group
+# (root-equivalent, hence the forced command); the external `edge` network.
+# The GitHub side is in the header of .github/workflows/ci.yml.
 set -euo pipefail
 
 ROOT=/srv/openeam
@@ -36,6 +37,22 @@ fi
 dir="$ROOT/$env"
 cd "$dir"
 
+# Pull first, with the tag as an override; the shell environment wins over
+# .env in Compose, so a tag that does not exist fails here and leaves .env
+# naming what actually runs.
+echo "==> $env: pulling $tag"
+OPENEAM_TAG=$tag docker compose pull --quiet
+
+# No backup, no deploy: a failing dump (or a broken off-host copy) stops here.
+# Only the very first deploy, with no database volume yet, skips it; a stopped
+# stack is started far enough to dump.
+project=$(sed -n 's/^COMPOSE_PROJECT_NAME=//p' .env)
+if [[ "$env" == prod ]] && docker volume inspect "${project}_postgres-data" >/dev/null 2>&1; then
+  echo "==> $env: backup before migrating"
+  docker compose up -d --wait postgres
+  "$ROOT/bin/backup.sh" prod
+fi
+
 # The .env holds exactly what runs; the tag is the only line a deploy edits.
 if grep -q '^OPENEAM_TAG=' .env; then
   sed -i "s|^OPENEAM_TAG=.*|OPENEAM_TAG=$tag|" .env
@@ -43,20 +60,11 @@ else
   printf 'OPENEAM_TAG=%s\n' "$tag" >>.env
 fi
 
-echo "==> $env: pulling $tag"
-docker compose pull --quiet
-
-# No backup, no deploy: a failing dump (or a broken off-host copy) stops here.
-# The very first deploy has no database yet and skips it.
-if [[ "$env" == prod && -n "$(docker compose ps -q --status running postgres)" ]]; then
-  echo "==> $env: backup before migrating"
-  "$ROOT/bin/backup.sh" prod
-fi
-
 echo "==> $env: starting"
 # --wait returns once every service is healthy, or fails — so the workflow
-# fails too, with the logs below, instead of reporting a green deploy.
-if ! docker compose up -d --remove-orphans --wait; then
+# fails too, with the logs below, instead of reporting a green deploy. The
+# timeout bounds a crash-looping migration.
+if ! docker compose up -d --remove-orphans --wait --wait-timeout 300; then
   docker compose logs --tail=100 api web
   exit 1
 fi

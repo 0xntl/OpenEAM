@@ -8,7 +8,7 @@ We expect all contributors, maintainers, and community members to follow it in a
 
 If you observe behaviour that violates this Code of Conduct, please open a confidential report by emailing the project maintainers. We will respond as quickly as possible.
 
-Until a dedicated contact address is set up (see [docs/IDEAS.md](docs/IDEAS.md) for the community-channels item), use the email listed in the latest release notes or contact a maintainer directly via GitHub.
+Until a dedicated contact address is set up (see [docs/IDEAS.md](docs/IDEAS.md) for the community-channels item), contact a maintainer directly via GitHub.
 
 ## Enforcement
 
