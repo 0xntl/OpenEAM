@@ -36,8 +36,9 @@ Thumbs.db
 # Docker volumes (if mounted locally)
 .docker-data/
 
-# TanStack Router auto-generated route tree
+# TanStack Router: generated route tree and the CLI's scratch files
 apps/web/src/routeTree.gen.ts
+apps/web/.tanstack/
 
 # Private data-exchange bundles for real (non-public) enterprises — modelled
 # locally so they can be read/imported/updated, never committed or referenced
