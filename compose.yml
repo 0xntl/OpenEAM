@@ -10,7 +10,7 @@
 # This file builds the images locally and publishes a plain-HTTP port: right
 # for a LAN box or a first look. A public instance runs deploy/compose.yml
 # instead — published images, TLS in front, prod and staging side by side;
-# see deploy/README.md.
+# see docs/ARCHITECTURE.md "Deploying".
 name: openeam
 
 services:

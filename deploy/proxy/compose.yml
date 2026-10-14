@@ -1,11 +1,20 @@
 # The one thing on the host that listens: Caddy, terminating TLS for every
 # environment and forwarding each hostname to that stack's web container over
 # the external `edge` network. Certificates come from Let's Encrypt and live
-# in the caddy-data volume. See deploy/README.md.
+# in the caddy-data volume.
 #
 #   docker network create edge        # once
-#   docker compose up -d              # .env: ACME_EMAIL, PROD_HOST, STAGING_HOST,
-#                                     # STAGING_USER, STAGING_PASSWORD_HASH
+#   docker compose up -d
+#
+# .env (chmod 600):
+#   ACME_EMAIL=you@example.com                 Let's Encrypt contact
+#   PROD_HOST=eam.example.com
+#   STAGING_HOST=staging.eam.example.com
+#   STAGING_USER=team                          basic auth in front of staging
+#   STAGING_PASSWORD_HASH='$2a$14$…'           docker run --rm caddy:2.10-alpine
+#                                              caddy hash-password --plaintext '…'
+#                                              keep the single quotes: Compose
+#                                              would interpolate the $ otherwise
 name: openeam-proxy
 
 services:

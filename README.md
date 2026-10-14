@@ -44,12 +44,12 @@ This builds the images locally and serves plain HTTP: right for a LAN box.
 
 ### On the internet
 
-[deploy/](deploy/README.md) is the production shape: images published to
-GHCR by CI, a production and a staging stack side by side on one host, Caddy
-with Let's Encrypt in front, deploys from GitHub Actions (staging on every
-push to `main`, production on a `v*` tag after approval), nightly encrypted
-backups copied off the host. The runbook there sets a server up in about half
-an hour.
+[deploy/](deploy/) is the production shape: images published to GHCR by
+CI, a production and a staging stack side by side on one host, Caddy with
+Let's Encrypt in front, deploys from GitHub Actions (staging on every push
+to `main`, production on a `v*` tag after approval), nightly encrypted
+backups copied off the host. [ARCHITECTURE.md](docs/ARCHITECTURE.md#deploying)
+has the layout.
 
 ### For development
 

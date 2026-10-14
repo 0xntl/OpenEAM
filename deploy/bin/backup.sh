@@ -10,6 +10,18 @@
 #   BACKUP_AGE_RECIPIENT=age1…        public key; the private key stays off the host
 #   BACKUP_RCLONE_REMOTE=backups:openeam     rclone remote and bucket/path
 #   BACKUP_KEEP_DAYS=30
+#
+# Nightly, as the deploy user:
+#   0 3 * * * /srv/openeam/bin/backup.sh prod >> /srv/openeam/backups/backup.log 2>&1
+#
+# Restore into staging, which is the only proof the backups work. The age
+# identity is on your machine, so decrypt there and stream the SQL in:
+#   age -d -i openeam-backup.key openeam-prod-….sql.gz.age | gunzip |
+#     ssh root@host 'cd /srv/openeam/staging && docker compose stop api web &&
+#       docker compose exec -T postgres sh -c "dropdb -U \$POSTGRES_USER \$POSTGRES_DB && createdb -U \$POSTGRES_USER \$POSTGRES_DB" &&
+#       docker compose exec -T postgres sh -c "psql -q -v ON_ERROR_STOP=1 -U \$POSTGRES_USER -d \$POSTGRES_DB" &&
+#       docker compose up -d --wait'
+# Migrations do not roll back; a schema change that needs undoing is a restore.
 set -euo pipefail
 
 ROOT=/srv/openeam

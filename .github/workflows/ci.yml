@@ -5,10 +5,18 @@
 #
 # Pushes to main and tags additionally publish the images to GHCR
 # (ghcr.io/<owner>/openeam-api, …-web) and deploy them: main to staging, a
-# v* tag to production. Deploys go through GitHub Environments — the
-# `production` environment is set up to require a reviewer — over SSH to a
-# key whose only allowed command is deploy/bin/deploy.sh, and whose only
-# input is "<environment> <tag>". See deploy/README.md.
+# v* tag to production, over SSH to a key whose only allowed command is
+# deploy/bin/deploy.sh and whose only input is "<environment> <tag>".
+#
+# Repository settings this needs, once:
+#   Environments `staging` and `production`; on production a required
+#   reviewer and a deployment-branch rule for tags `v*`.
+#   Per environment — variables DEPLOY_HOST (server address),
+#   DEPLOY_KNOWN_HOSTS (its ssh host key line, "<DEPLOY_HOST> ssh-ed25519 …"),
+#   OPENEAM_HOST (public hostname, for the deployment link); secret
+#   DEPLOY_SSH_KEY (the private deploy key, never an admin key).
+#   The two packages set to public after the first push, so the server pulls
+#   without a token.
 name: CI
 
 on:

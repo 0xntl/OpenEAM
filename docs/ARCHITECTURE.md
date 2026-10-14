@@ -359,17 +359,31 @@ by nginx, `apps/web/nginx.conf` proxies the API paths). Only the web container
 publishes a port.
 
 **Published images, TLS, two environments** — for an instance on the
-internet, in [deploy/](../deploy/README.md). CI builds both images on every
-push and PR (so a broken Dockerfile fails there) and publishes them to GHCR on
-`main` and on `v*` tags, as `main`, an immutable `sha-…`, `v1.2.3` and
-`latest`. `deploy/compose.yml` is one environment from those images: no
-published ports, joined to an external `edge` network where the shared Caddy
+internet, from [deploy/](../deploy/). CI builds both images on every push and
+PR (so a broken Dockerfile fails there) and publishes them to GHCR on `main`
+and on `v*` tags, as `main`, an immutable `sha-…`, `v1.2.3` and `latest`.
+`deploy/compose.yml` is one environment from those images: no published
+ports, joined to an external `edge` network where the shared Caddy
 (`deploy/proxy`) reaches its web container by name. Prod and staging are two
-copies of it with different `.env` files on one host. The workflow deploys
-over SSH to a key whose forced command is `deploy/bin/deploy.sh` and whose
-only input is the environment and the tag; the script pins the tag, pulls,
-dumps prod, and waits for health. The reasoning is D-26 in
-[DECISIONS.md](DECISIONS.md).
+copies of it with different `.env` files on one host:
+
+```
+/srv/openeam/proxy/     deploy/proxy, Caddy: TLS for both hostnames, 80/443
+             prod/      deploy/compose.yml + .env    tag v…
+             staging/   deploy/compose.yml + .env    tag sha-…
+             bin/       deploy.sh, backup.sh, root-owned
+             backups/   nightly dumps, age-encrypted, rclone'd off-host
+```
+
+Each file's header says what it expects: the `.env` variables in the two
+compose files, the server layout and the forced-command key in `deploy.sh`,
+backup settings, cron line and the restore pipeline in `backup.sh`, the
+GitHub environments, variables and secret in `ci.yml`. The workflow deploys
+staging on every push to `main` and production on a tag after a reviewer
+approves; `deploy.sh` pins the tag, pulls, dumps prod, and waits for health.
+Create the first account right after the first production deploy — it is the
+instance admin, and anyone reaching the hostname could create it first. The
+reasoning is D-26 in [DECISIONS.md](DECISIONS.md).
 
 Open the instance and create the first account. It can always be created, it
 is the instance admin, and it inherits every enterprise already in the

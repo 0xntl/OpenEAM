@@ -2,13 +2,20 @@
 # Runs once per environment (prod, staging) on the same host, each as its own
 # Compose project with its own Postgres, volume and .env. Nothing is published
 # on the host; the shared Caddy in deploy/proxy reaches the web container over
-# the external `edge` network by its name, <project>-web. See deploy/README.md.
+# the external `edge` network by its name, <project>-web. Layout and the
+# reasoning: docs/ARCHITECTURE.md "Deploying" and D-26.
 #
 #   docker compose pull && docker compose up -d --wait
 #
-# .env (one per environment, see deploy/README.md): COMPOSE_PROJECT_NAME,
-# OPENEAM_HOST, OPENEAM_TAG, OPENEAM_IMAGE, POSTGRES_USER/PASSWORD/DB,
-# AUTH_ALLOW_SIGNUP.
+# .env, one per environment (chmod 600):
+#   COMPOSE_PROJECT_NAME=openeam-prod        names containers and the volume
+#   OPENEAM_HOST=eam.example.com             public hostname, becomes WEB_ORIGIN
+#   OPENEAM_TAG=v0.1.0                       written by bin/deploy.sh
+#   OPENEAM_IMAGE=ghcr.io/0xntl/openeam      registry prefix, -api/-web appended
+#   POSTGRES_USER=openeam
+#   POSTGRES_PASSWORD=…                      openssl rand -base64 32
+#   POSTGRES_DB=openeam
+#   AUTH_ALLOW_SIGNUP=false                  seeds the switch on an empty instance
 #
 # The repository-root compose.yml is the other shape: it builds the images
 # locally and publishes a port, for a LAN box or a first look.

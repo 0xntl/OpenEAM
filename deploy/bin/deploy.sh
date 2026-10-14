@@ -10,6 +10,12 @@
 #
 #   ssh deploy@host "staging sha-1a2b3c4"
 #   ssh deploy@host "prod v0.3.0"
+#
+# Expects, placed by hand once: /srv/openeam/{prod,staging}/compose.yml + .env,
+# /srv/openeam/proxy, this script and backup.sh root-owned in /srv/openeam/bin,
+# a `deploy` user in the docker group (root-equivalent, hence the forced
+# command), and the external `edge` network. The GitHub side is in the
+# header of .github/workflows/ci.yml.
 set -euo pipefail
 
 ROOT=/srv/openeam
