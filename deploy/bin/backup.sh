@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Dumps one environment's database: gzip, encrypted with age when a recipient
 # is set, copied off the host with rclone when a remote is set, old copies
-# removed after BACKUP_KEEP_DAYS. Run by the systemd timer nightly and by
+# removed after BACKUP_KEEP_DAYS. Run by cron nightly and by
 # deploy.sh before every prod deploy.
 #
 #   backup.sh prod

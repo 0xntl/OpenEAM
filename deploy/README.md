@@ -35,7 +35,7 @@ GitHub ──push main──▶ CI: lint, typecheck, build, images ──▶ ghc
   pins the tag, pulls, dumps prod first, and `docker compose up --wait`s so
   an unhealthy container fails the workflow. Everything else on the server
   (`compose.yml`, `.env`, the scripts) is placed by hand, once.
-- **Backups**: a systemd timer dumps prod nightly; `age` encrypts, `rclone`
+- **Backups**: a cron job dumps prod nightly; `age` encrypts, `rclone`
   copies off-host. `restore.sh` loads a dump into staging, which is the test.
 
 ## Server, once
@@ -55,7 +55,7 @@ step 4, whose private half lives only in GitHub and can only run
 ```bash
 # 1. Base system, with automatic security updates
 apt update && apt upgrade -y
-apt install -y ca-certificates curl git age rclone unattended-upgrades
+apt install -y ca-certificates curl git cron age rclone unattended-upgrades
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
@@ -69,10 +69,9 @@ install -d -o deploy -g deploy -m 750 /srv/openeam /srv/openeam/prod /srv/openea
 install -d -o root -g root -m 755 /srv/openeam/bin
 docker network create edge
 
-# 3. Scripts and the backup timer, from a checkout of this repository
+# 3. Scripts, proxy and compose files, from a checkout of this repository
 git clone --depth 1 https://github.com/0xntl/OpenEAM /tmp/openeam
 install -o root -g root -m 755 /tmp/openeam/deploy/bin/*.sh /srv/openeam/bin/
-install -m 644 /tmp/openeam/deploy/systemd/openeam-backup@.* /etc/systemd/system/
 cp -r /tmp/openeam/deploy/proxy /srv/openeam/proxy
 cp /tmp/openeam/deploy/compose.yml /srv/openeam/prod/
 cp /tmp/openeam/deploy/compose.yml /srv/openeam/staging/
@@ -114,7 +113,7 @@ BACKUP_KEEP_DAYS=30
 ENV
 chmod 600 /srv/openeam/backup.env && chown deploy:deploy /srv/openeam/backup.env
 sudo -u deploy rclone config    # any S3-compatible bucket; keep it in another location
-systemctl enable --now openeam-backup@prod.timer
+echo '0 3 * * * /srv/openeam/bin/backup.sh prod >> /srv/openeam/backups/backup.log 2>&1' | crontab -u deploy -
 
 # 6. The proxy
 cd /srv/openeam/proxy && sudo -u deploy docker compose up -d
@@ -161,6 +160,5 @@ In the repository settings:
   into staging. Do it once a quarter; it is the only proof the backups work.
 - **Updating this folder**: nothing in `deploy/` reaches the server by
   itself, by design — the deploy key cannot change what runs, only which tag.
-  When `compose.yml`, `bin/`, `proxy/` or the systemd units change, copy them
-  as in step 3 before deploying the release that needs them. They change
-  rarely.
+  When `compose.yml`, `bin/` or `proxy/` change, copy them as in step 3
+  before deploying the release that needs them. They change rarely.
