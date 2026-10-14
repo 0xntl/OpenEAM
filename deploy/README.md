@@ -16,7 +16,7 @@ GitHub ──push main──▶ CI: lint, typecheck, build, images ──▶ ghc
   host ─ /srv/openeam ─ proxy/    Caddy: TLS for both hostnames, ports 80/443
                       ├ staging/  compose.yml + .env  → postgres, api, web   (tag sha-…)
                       ├ prod/     compose.yml + .env  → postgres, api, web   (tag v…)
-                      ├ bin/      deploy.sh, backup.sh, restore.sh (root-owned)
+                      ├ bin/      deploy.sh, backup.sh (root-owned)
                       └ backups/  nightly dumps, encrypted, copied off-host
 ```
 
@@ -36,7 +36,7 @@ GitHub ──push main──▶ CI: lint, typecheck, build, images ──▶ ghc
   an unhealthy container fails the workflow. Everything else on the server
   (`compose.yml`, `.env`, the scripts) is placed by hand, once.
 - **Backups**: a cron job dumps prod nightly; `age` encrypts, `rclone`
-  copies off-host. `restore.sh` loads a dump into staging, which is the test.
+  copies off-host. Restoring a dump into staging is the test.
 
 ## Server, once
 
@@ -75,18 +75,35 @@ install -o root -g root -m 755 /tmp/openeam/deploy/bin/*.sh /srv/openeam/bin/
 cp -r /tmp/openeam/deploy/proxy /srv/openeam/proxy
 cp /tmp/openeam/deploy/compose.yml /srv/openeam/prod/
 cp /tmp/openeam/deploy/compose.yml /srv/openeam/staging/
-cp /tmp/openeam/deploy/.env.example /srv/openeam/prod/.env
-cp /tmp/openeam/deploy/.env.example /srv/openeam/staging/.env
-cp /srv/openeam/proxy/.env.example /srv/openeam/proxy/.env
+
+# One .env per environment; the same for staging with openeam-staging and its
+# hostname. OPENEAM_TAG is whatever the first deploy writes.
+cat > /srv/openeam/prod/.env <<'ENV'
+COMPOSE_PROJECT_NAME=openeam-prod
+OPENEAM_HOST=eam.example.com
+OPENEAM_TAG=main
+OPENEAM_IMAGE=ghcr.io/0xntl/openeam
+POSTGRES_USER=openeam
+POSTGRES_PASSWORD=<openssl rand -base64 32>
+POSTGRES_DB=openeam
+AUTH_ALLOW_SIGNUP=false
+ENV
+
+# The proxy's .env: hostnames, the Let's Encrypt contact, and basic auth in
+# front of staging. Make the hash with
+#   docker run --rm caddy:2.10-alpine caddy hash-password --plaintext '<password>'
+# and keep the single quotes, or Compose interpolates the `$` in it.
+cat > /srv/openeam/proxy/.env <<'ENV'
+ACME_EMAIL=you@example.com
+PROD_HOST=eam.example.com
+STAGING_HOST=staging.eam.example.com
+STAGING_USER=team
+STAGING_PASSWORD_HASH='$2a$14$…'
+ENV
+
 chown -R deploy:deploy /srv/openeam/prod /srv/openeam/staging /srv/openeam/proxy
 chmod 600 /srv/openeam/*/.env
 ```
-
-Fill in the three `.env` files (`prod`, `staging`, `proxy`): hostnames, a
-random Postgres password per environment (`openssl rand -base64 32`),
-`COMPOSE_PROJECT_NAME=openeam-prod` and `openeam-staging`, the ACME mail and the
-staging password hash (the command is in `proxy/.env.example`). `OPENEAM_TAG`
-can stay as it is; the first deploy overwrites it.
 
 ```bash
 # 4. The deploy key: generated here, public half restricted to deploy.sh
@@ -139,8 +156,6 @@ In the repository settings:
 - **Packages**: after the first push the two packages appear under the
   owner; set them to public so the server can pull without a token (or create
   a read-only token and `docker login ghcr.io` on the server as `deploy`).
-- **Renovate**: install the [Renovate GitHub App](https://github.com/apps/renovate)
-  for the repository; `renovate.json` holds the configuration.
 
 ## Day to day
 
@@ -156,8 +171,17 @@ In the repository settings:
   key, or log in with your admin key, edit `OPENEAM_TAG` in
   `/srv/openeam/prod/.env` and `docker compose up -d`. Migrations do not roll
   back; a schema change that needs undoing is a restore.
-- **Restore**: `restore.sh staging <dump> <age identity>` loads a prod dump
-  into staging. Do it once a quarter; it is the only proof the backups work.
+- **Restore**, into staging, once a quarter; it is the only proof the
+  backups work. The age identity (private key) is on your machine, not the
+  host; decrypt there and stream the SQL in:
+
+  ```bash
+  age -d -i openeam-backup.key openeam-prod-….sql.gz.age | gunzip |
+    ssh root@host 'cd /srv/openeam/staging && docker compose stop api web &&
+      docker compose exec -T postgres sh -c "dropdb -U \$POSTGRES_USER \$POSTGRES_DB && createdb -U \$POSTGRES_USER \$POSTGRES_DB" &&
+      docker compose exec -T postgres sh -c "psql -q -v ON_ERROR_STOP=1 -U \$POSTGRES_USER -d \$POSTGRES_DB" &&
+      docker compose up -d --wait'
+  ```
 - **Updating this folder**: nothing in `deploy/` reaches the server by
   itself, by design — the deploy key cannot change what runs, only which tag.
   When `compose.yml`, `bin/` or `proxy/` change, copy them as in step 3

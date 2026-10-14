@@ -4,8 +4,8 @@
 # in the caddy-data volume. See deploy/README.md.
 #
 #   docker network create edge        # once
-#   cp .env.example .env              # hostnames, ACME mail, staging password
-#   docker compose up -d
+#   docker compose up -d              # .env: ACME_EMAIL, PROD_HOST, STAGING_HOST,
+#                                     # STAGING_USER, STAGING_PASSWORD_HASH
 name: openeam-proxy
 
 services:

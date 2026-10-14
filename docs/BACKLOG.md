@@ -66,11 +66,11 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   gitleaks rule file — personal risk, personal config. See D-9 in
   [DECISIONS.md](DECISIONS.md).
 
-- **Renovate and CodeQL** (T1.8) — Renovate is configured (`renovate.json`);
-  what remains is installing the Renovate GitHub App on the repository and
-  triaging the first dashboard, and switching on CodeQL's default setup under
-  Settings → Code security, which needs no file in the repository. Both are
-  things only the owner can do. A manual `pnpm -r outdated` pass in 2026-08 had found 31
+- **Renovate and CodeQL** (T1.8) — both are switched on by the owner, not by
+  a file: install the Renovate GitHub App (its onboarding PR brings the
+  config; group the container images and pin the GitHub Actions to digests
+  in it) and enable CodeQL's default setup under Settings → Code security. A
+  manual `pnpm -r outdated` pass in 2026-08 had found 31
   stale packages, including a stale peer-dependency ghost in `node_modules`
   that silently broke a typecheck — the reason the bot exists.
 

@@ -4,8 +4,11 @@
 # on the host; the shared Caddy in deploy/proxy reaches the web container over
 # the external `edge` network by its name, <project>-web. See deploy/README.md.
 #
-#   cp .env.example .env            # fill in; COMPOSE_PROJECT_NAME names the stack
 #   docker compose pull && docker compose up -d --wait
+#
+# .env (one per environment, see deploy/README.md): COMPOSE_PROJECT_NAME,
+# OPENEAM_HOST, OPENEAM_TAG, OPENEAM_IMAGE, POSTGRES_USER/PASSWORD/DB,
+# AUTH_ALLOW_SIGNUP.
 #
 # The repository-root compose.yml is the other shape: it builds the images
 # locally and publishes a port, for a LAN box or a first look.
