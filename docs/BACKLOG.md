@@ -41,6 +41,15 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 
 ## Foundation
 
+- **A red check can still reach `main`** — CI runs lint, typecheck, build
+  and the tests on every push and pull request, and container images are
+  only built once they pass, but nothing on `main` requires them: there is
+  no branch protection and no ruleset, so a push lands whatever the checks
+  say. Make "Lint, typecheck, build" and "Tests" required status checks on
+  `main`. A required check can only be met before the merge, so this ends
+  pushing straight to `main`: every change goes through a pull request, a
+  self-merged one included.
+
 - **Rules without a constraint can be raced** — INV-17 and INV-18 are a
   read followed by a write, with nothing in Postgres behind them: two
   requests at once can each see "another admin exists" and both proceed.
