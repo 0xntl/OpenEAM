@@ -69,10 +69,15 @@ function PhoneMenuControl() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger, not an input
   useEffect(() => setOpenMobile(false), [pathname, setOpenMobile]);
+  // Opening the drawer, the palette or a sheet locks page scrolling, which
+  // takes the scrollbar away where scrollbars have a width (a narrow window
+  // on a desktop). The viewport widens by that much and anything fixed to it
+  // would jump; the scroll lock publishes the width it removed, so the centre
+  // is corrected by half of it.
   return (
     <div
       data-slot="phone-menu"
-      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/90 p-1 shadow-lg shadow-black/10 backdrop-blur-md md:hidden"
+      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-[calc(50%_-_var(--removed-body-scroll-bar-size,0px)_/_2)] z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/90 p-1 shadow-lg shadow-black/10 backdrop-blur-md md:hidden"
     >
       <Button
         variant="ghost"
