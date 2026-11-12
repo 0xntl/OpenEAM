@@ -193,6 +193,25 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   rejects before anything is written, never a replace. This is the integration
   path; the bundle is not (D-24). Needs the external id above.
 
+- **Deleting an account needs thinking through** — today "Delete account"
+  removes the row, and the account's memberships and sessions go with it.
+  That is harmless only because nothing else refers to an account yet. It
+  stops being harmless with the first thing that does:
+  - *A record of who changed what.* An audit log (IDEAS) or a "last
+    confirmed by" on a fact (UC-1) has to outlive the person's access. With
+    the account gone the entry points at nothing, or is erased with it.
+  - *An account that is also an actor.* The person who signs in is often
+    someone the model describes: the holder of a role, the owner of a
+    building block. Once an account can be linked to an actor, deleting the
+    account must not take the actor, or the link's history, with it.
+
+  The choices to weigh: deactivate only and never delete; keep a tombstone
+  (the id and a display name, no email, no credentials); or delete and hand
+  what the account is attached to over to someone else. A person's right to
+  have their data removed pulls the other way, so "never delete" is not free
+  either. Decide before the first feature stores an account id on a row of
+  the model.
+
 ## Phones and touch
 
 What is settled. A phone is for looking something up, reviewing and a light
