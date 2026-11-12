@@ -198,6 +198,22 @@ the collapsed rail scrolls on a short window. What remains:
   its own authentication needs a disclosure path. Issue templates belong here
   too.
 
+- **Say where AI assistance stands** — [CONTRIBUTING.md](../CONTRIBUTING.md)
+  is silent on it, in a repository that is itself mostly written with an AI
+  assistant. A short paragraph: using one is welcome; a person has read the
+  change and answers for it; the pull request says how it was checked, not
+  only what it does. No ban and no disclosure ritual beyond that — what
+  protects the project is the checks a change has to pass, not who typed it.
+  Worth having before the first outside pull request, since that is when the
+  volume question arrives.
+
+- **`AGENTS.md` beside `CLAUDE.md`** — the operating notes for assistants
+  (private data, the icon rules, docs order, dense on purpose) sit in a file
+  one tool reads. `AGENTS.md` is the tool-neutral name other coding agents
+  look for. One file holds the notes and the other points at it, so a
+  contributor's assistant gets the same rules whichever it is, and they are
+  never maintained twice.
+
 - **The Definition of Done has no test criterion** — [CONTRIBUTING.md](../CONTRIBUTING.md)
   requires lint, typecheck and build. For code that is not reviewed line by line,
   those three prove it compiles, not that it works. Add the test step once T1.3
