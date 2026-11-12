@@ -30,6 +30,7 @@ import { ActorsService } from '../src/actors/actors.service';
 import { AdminService } from '../src/admin/admin.service';
 import { ArchitectureDomainsService } from '../src/architecture-domains/architecture-domains.service';
 import { AuthService } from '../src/auth/auth.service';
+import { hashPassword } from '../src/auth/password';
 import type { EnterpriseRole } from '../src/auth/policy';
 import type { InstanceRole, Principal } from '../src/auth/principal';
 import { BuildingBlocksService } from '../src/building-blocks/building-blocks.service';
@@ -49,6 +50,13 @@ declare module 'vitest' {
     // refuses any database whose name does not end in `_test`.
     databaseUrl: string;
   }
+}
+
+// One hash for every account the tests create; see World.account().
+let hashed: Promise<string> | undefined;
+function somePassword(): Promise<string> {
+  hashed ??= hashPassword(randomBytes(24).toString('base64url'));
+  return hashed;
 }
 
 // An enterprise as a test needs it: its id, who owns it, and the four
@@ -98,12 +106,14 @@ export class World {
   // (scrypt, ~100 ms) per account in every test, and how an account comes to
   // exist is tested where that is the subject. What the account may do is
   // real — the principal comes out of the session the way AuthGuard gets it.
+  // It has a password, hashed once for all of them, because an account
+  // without one is not an active admin (INV-17).
   async account(instanceRole: InstanceRole = 'user'): Promise<Principal> {
     const email = `${randomUUID()}@example.test`;
     const token = randomBytes(32).toString('base64url');
     const [user] = await this.db
       .insert(schema.users)
-      .values({ email, displayName: email, instanceRole })
+      .values({ email, displayName: email, instanceRole, passwordHash: await somePassword() })
       .returning({ id: schema.users.id });
     if (!user) throw new Error('user insert returned no row');
     await this.db.insert(schema.sessions).values({

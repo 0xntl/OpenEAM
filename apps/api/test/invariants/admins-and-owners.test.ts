@@ -31,22 +31,35 @@ describe('INV-17: there is always at least one active instance admin', () => {
     await expectRefusal(world.admin.setRole(first.userId, 'user'), BadRequestException, lastAdmin);
   });
 
-  // FINDING, 2026-11-12 — skipped because it fails; remove `.skip` with the
-  // fix. The check counts every admin that is not deactivated, including one
-  // created by an admin who has not used their setup link yet and so cannot
-  // sign in. The last admin who can may step down (or be deactivated or
-  // deleted by that account's later session), and if the link then expires
-  // after its seven days nobody is left to issue another. Whether such an
-  // account is "active" is the decision to make; this test says it is not.
-  it.skip('does not count an admin who has never set a password', async ({ world }) => {
+  // Active means able to sign in (D-29). An admin created by another admin
+  // has no password until the setup link is used; if they counted, the last
+  // admin who can sign in could step down, and once the link had run out
+  // after its seven days nobody would be left to issue another.
+  it('does not count an admin who has never set a password', async ({ world }) => {
     const first = await world.account('admin');
-    await world.admin.createUser(first, {
+    const { user: pending, token } = await world.admin.createUser(first, {
       email: 'pending@example.test',
       displayName: 'Pending',
       instanceRole: InstanceRole.ADMIN,
     });
 
-    await expectRefusal(world.admin.setRole(first.userId, 'user'), BadRequestException, lastAdmin);
+    // The refusal says why appointing someone was not enough.
+    await expectRefusal(
+      world.admin.setRole(first.userId, 'user'),
+      BadRequestException,
+      /This is the last active admin — the other admin has not set a password yet/,
+    );
+
+    // From the moment the link is used, they count.
+    await world.auth.completeSetup(token, 'a long enough password');
+    await expect(world.admin.setRole(first.userId, 'user')).resolves.toMatchObject({
+      instanceRole: 'user',
+    });
+    await expectRefusal(
+      world.admin.setRole(pending.id, 'user'),
+      BadRequestException,
+      /This is the last active admin — appoint another one first/,
+    );
   });
 
   it('refuses deactivating or deleting the last active admin', async ({ world }) => {
@@ -140,33 +153,36 @@ describe('INV-18: every enterprise has at least one explicit owner', () => {
     );
   });
 
-  // FINDING, 2026-11-12 — the rule does not hold here, so this test fails and
-  // is skipped until the rule is fixed; remove `.skip` with the fix.
-  // addMember() upserts the membership and sets the role without asking
-  // whether the member is the last owner, so an owner (or an admin) who adds
-  // the last owner again as editor or viewer leaves the enterprise without
-  // an explicit owner. From there the former owner can also leave, which
-  // INV-16 forbids: an enterprise with no member at all.
-  it.skip('refuses demoting the last owner by adding them again with a lesser role', async ({
+  // addMember() sets the role of someone who is already a member, so it is
+  // a second way to demote: without the rule here, the last owner added
+  // again as editor or viewer left the enterprise with no explicit owner,
+  // and could then leave it with no member at all (INV-16).
+  it('refuses demoting the last owner by adding them again with a lesser role', async ({
     world,
   }) => {
-    const { owner, id } = await world.enterprise();
+    const enterprise = await world.enterprise();
+    const { owner, id } = enterprise;
 
     await expectRefusal(
       world.enterprises.addMember(owner, id, owner.email, 'viewer'),
       BadRequestException,
-      /owner/,
+      needsOwner,
     );
     const members = await world.enterprises.members(await world.nextRequest(owner), id);
     expect(members).toEqual([expect.objectContaining({ userId: owner.userId, role: 'owner' })]);
+
+    // With a second owner it is an ordinary change of role, and adding a
+    // member again with the role they have changes nothing.
+    await world.member(enterprise, 'owner');
+    await world.enterprises.addMember(owner, id, owner.email, 'owner');
+    const after = await world.enterprises.addMember(owner, id, owner.email, 'viewer');
+    expect(after.find((member) => member.userId === owner.userId)?.role).toBe('viewer');
   });
 
-  // FINDING, 2026-11-12 — the rule does not hold here either; skipped for
-  // the same reason. deleteUser() refuses only when the account is the last
-  // *member* of an enterprise. With any other member present, deleting the
-  // last owner's account goes through, the membership cascades away with it,
-  // and the enterprise is left with members but no explicit owner.
-  it.skip('refuses deleting the account of the last owner while other members remain', async ({
+  // A membership goes with its account. Deleting the last owner's account
+  // while others are members would leave an enterprise with members and no
+  // explicit owner, so it is refused like removing them would be.
+  it('refuses deleting the account of the last owner while other members remain', async ({
     world,
   }) => {
     const enterprise = await world.enterprise();
@@ -174,8 +190,15 @@ describe('INV-18: every enterprise has at least one explicit owner', () => {
     const editor = await world.member(enterprise, 'editor');
     const admin = await world.account('admin');
 
-    await expectRefusal(world.admin.deleteUser(admin, owner.userId), BadRequestException, /owner/);
+    await expectRefusal(
+      world.admin.deleteUser(admin, owner.userId),
+      BadRequestException,
+      /This account is the only owner of/,
+    );
     const members = await world.enterprises.members(editor, id);
     expect(members.filter((member) => member.role === 'owner')).toHaveLength(1);
+
+    // An account that owns nothing alone can go.
+    expect(await world.admin.deleteUser(admin, editor.userId)).toBe(true);
   });
 });

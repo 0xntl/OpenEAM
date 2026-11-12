@@ -7,6 +7,10 @@
 //
 // Every violation is reported with the table and the offending id, and the
 // validator keeps going, so one response lists everything wrong with a bundle.
+//
+// Two functions, one answer: validateBundle() for the rules that need only
+// the rows, validateDiagrams() for INV-7, which has to parse each diagram.
+import { extractStepNames } from '../business-processes/bpmn-steps';
 import {
   architectureLevelAllowed,
   isHalfOpenInterval,
@@ -446,4 +450,49 @@ function index<T extends { id: string }>(
     byId.set(row.id, row);
   }
   return byId;
+}
+
+// INV-7 for a bundle, apart from validateBundle() because parsing BPMN is
+// asynchronous. A process that carries a diagram must carry BPMN 2.0, and its
+// steps must be the ones the diagram gives: the named tasks, in the order
+// business-processes.service.ts would store them on a save. A bundle whose
+// steps say something else is refused, not corrected — the importer writes
+// what a bundle holds or nothing (D-16, D-30). A process without a diagram
+// keeps whatever steps the bundle lists; there is nothing to hold them to.
+export async function validateDiagrams(bundle: DataBundle): Promise<BundleIssue[]> {
+  const issues: BundleIssue[] = [];
+  const listed = (names: string[]) =>
+    names.length > 0 ? names.map((name) => `"${name}"`).join(', ') : 'none';
+
+  for (const process of bundle.businessProcesses) {
+    if (process.bpmnXml === null || process.bpmnXml === undefined) continue;
+
+    let fromDiagram: string[];
+    try {
+      fromDiagram = await extractStepNames(process.bpmnXml);
+    } catch (err) {
+      issues.push({
+        table: 'businessProcesses',
+        id: process.id,
+        message: `bpmnXml is not BPMN 2.0 (INV-7): ${err instanceof Error ? err.message : String(err)}`,
+      });
+      continue;
+    }
+
+    const fromBundle = bundle.processSteps
+      .filter((step) => step.processId === process.id)
+      .sort((a, b) => a.position - b.position)
+      .map((step) => step.name);
+    if (
+      fromBundle.length !== fromDiagram.length ||
+      fromBundle.some((name, position) => name !== fromDiagram[position])
+    ) {
+      issues.push({
+        table: 'businessProcesses',
+        id: process.id,
+        message: `its processSteps are not the named tasks of its diagram (INV-7): the diagram gives ${listed(fromDiagram)}, the bundle ${listed(fromBundle)}`,
+      });
+    }
+  }
+  return issues;
 }
