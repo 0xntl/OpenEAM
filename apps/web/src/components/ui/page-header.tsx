@@ -12,13 +12,18 @@ export const pageBackLinkClassName =
 // <main> (app-shell.tsx) carries no padding of its own — these classes are
 // each page's sole source of spacing, so it's never stacked on top of
 // another layer.
-export const contentWidthClassName = 'mx-auto w-full max-w-5xl px-6 pb-8';
-export const canvasWidthClassName = 'mx-auto flex h-screen w-full flex-col px-6 pb-8';
+//
+// Below md (phones) the side padding tightens and content pages leave room
+// at the bottom for the floating menu control (app-shell.tsx). Canvas
+// heights are dvh, not vh: a phone browser's address bar would otherwise
+// cover the bottom of the canvas.
+export const contentWidthClassName = 'mx-auto w-full max-w-5xl px-4 pb-24 md:px-6 md:pb-8';
+export const canvasWidthClassName = 'mx-auto flex h-dvh w-full flex-col px-4 pb-8 md:px-6';
 
 // True edge-to-edge: no padding at all, for the one view meant to feel
 // maximal rather than merely wide — canvasWidthClassName is still the
 // right choice for other canvas pages (e.g. the BPMN modeler).
-export const fullBleedCanvasClassName = 'flex h-screen w-full flex-col';
+export const fullBleedCanvasClassName = 'flex h-dvh w-full flex-col';
 
 interface PageHeaderProps {
   title: ReactNode;
@@ -37,19 +42,24 @@ interface PageHeaderProps {
 // only existing before the first scroll. The gradient below it (rather
 // than a border) fades scrolling content out instead of clipping it on a
 // hard edge.
+//
+// Below md none of that holds: the header scrolls away with the page (stuck,
+// it would take a sixth of a phone screen or more), the title wraps instead
+// of truncating, and the actions drop to their own line when title and
+// actions do not fit on one.
 export function PageHeader({ title, action, back, className }: PageHeaderProps) {
   return (
-    <div className={cn('sticky top-0 z-10 mb-10 bg-background pt-4', className)}>
+    <div className={cn('z-10 mb-6 bg-background pt-4 md:sticky md:top-0 md:mb-10', className)}>
       {back}
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight text-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h1 className="min-w-0 text-2xl font-semibold tracking-tight text-foreground wrap-break-word md:truncate">
           {title}
         </h1>
         {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
       </div>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-full h-10 bg-gradient-to-b from-background from-40% to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-full hidden h-10 bg-gradient-to-b from-background from-40% to-transparent md:block"
       />
     </div>
   );
@@ -87,7 +97,7 @@ export function Fact({
 // so every detail page spaces them identically.
 export const detailDescriptionClassName = 'mb-4 text-sm text-muted-foreground';
 export const detailFactsClassName = 'mb-6 flex flex-wrap gap-2';
-export const detailCardGridClassName = 'grid grid-cols-2 gap-4';
+export const detailCardGridClassName = 'grid grid-cols-1 gap-4 md:grid-cols-2';
 
 // The "titled card with a list of items" shape shared by capability and
 // business-process detail pages (was duplicated as local Quadrant/Section

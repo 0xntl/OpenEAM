@@ -5,13 +5,16 @@ import {
   Home,
   Library,
   Map as MapIcon,
+  Menu,
   Route,
+  Search,
   ShieldCheck,
   Table2,
   Target,
   Users,
   Workflow,
 } from 'lucide-react';
+import { useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
 import { Brand, BrandIcon } from './brand/brand';
 import { CommandPalette, CommandPaletteTrigger } from './command-palette';
@@ -52,6 +55,42 @@ function CollapsedBrandTrigger() {
       <BrandIcon />
       <span className="sr-only">Open the menu</span>
     </Button>
+  );
+}
+
+// Below the md breakpoint the sidebar is a closed drawer and its own trigger
+// is inside it, so the page needs one of its own: a small floating control at
+// the bottom, where a thumb reaches it — the menu, and search, which gets
+// anywhere without the menu. This is the minimum; the phone navigation proper
+// is in docs/BACKLOG.md.
+function PhoneMenuControl() {
+  const { toggleSidebar, setOpenMobile } = useSidebar();
+  // The drawer covers the page, so following a link in it has to close it.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger, not an input
+  useEffect(() => setOpenMobile(false), [pathname, setOpenMobile]);
+  return (
+    <div
+      data-slot="phone-menu"
+      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-background/90 p-1 shadow-lg shadow-black/10 backdrop-blur-md md:hidden"
+    >
+      <Button
+        variant="ghost"
+        className="size-11 rounded-full [&_svg]:size-5!"
+        onClick={toggleSidebar}
+      >
+        <Menu strokeWidth={2} />
+        <span className="sr-only">Open the menu</span>
+      </Button>
+      <Button
+        variant="ghost"
+        className="size-11 rounded-full [&_svg]:size-5!"
+        onClick={() => window.dispatchEvent(new CustomEvent('openeam:palette'))}
+      >
+        <Search strokeWidth={2} />
+        <span className="sr-only">Search</span>
+      </Button>
+    </div>
   );
 }
 
@@ -280,7 +319,11 @@ export function AppShell() {
         </Sidebar>
 
         <CommandPalette />
-        <div className="flex flex-1 flex-col min-h-screen">
+        <PhoneMenuControl />
+        {/* min-w-0: as a flex item this column would otherwise refuse to be
+            narrower than its widest unbreakable child (a table, a title next
+            to its buttons) and push the whole page sideways on a phone. */}
+        <div className="flex min-h-svh min-w-0 flex-1 flex-col">
           {/* No padding here — each page's own width class
               (contentWidthClassName/canvasWidthClassName/
               fullBleedCanvasClassName, see ui/page-header.tsx) is the sole

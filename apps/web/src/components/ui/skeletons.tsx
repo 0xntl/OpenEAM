@@ -37,7 +37,7 @@ export function DetailSkeleton() {
         <Skeleton className="h-7 w-1/3" />
       </div>
       <Skeleton className="h-4 w-2/3" />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Skeleton className="h-40 rounded-xl" />
         <Skeleton className="h-40 rounded-xl" />
       </div>
