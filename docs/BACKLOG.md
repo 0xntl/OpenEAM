@@ -116,6 +116,73 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   rejects before anything is written, never a replace. This is the integration
   path; the bundle is not (D-24). Needs the external id above.
 
+## Phones and touch
+
+What is settled. A phone is for looking something up, reviewing and a light
+edit; the modelling canvases are for viewing there. The layout follows the
+width (below `md` is the phone layout), the size of what you press follows
+the pointer (`pointer: coarse`), not the device. The dense sizing is a
+choice: this is a tool where seeing much at once and reaching things in few
+clicks is the point, and it stays as it is for mouse and trackpad.
+
+The first pass made a phone usable: no page scrolls sideways any more, a
+floating control at the bottom opens the menu and search, detail pages are
+one column, sheets take the full width, tables scroll instead of clipping,
+the collapsed rail scrolls on a short window. What remains:
+
+- **Touch layer** — under `pointer-coarse:` only: at least 44 px to press on
+  buttons and navigation rows (the hit area can grow without the visual
+  growing, as the `after:-inset-2` in `ui/sidebar.tsx` already does), 16 px
+  text in inputs (below that iOS zooms the page on focus, sign-in included),
+  and the edit controls that are `opacity-0` until hover — the pencil on the
+  cards of five list pages, Edit and Delete on building-block rows — always
+  visible. Separately, for every pointer: nothing below 12 px; the list cards
+  use 10 px for chips and counts.
+
+- **Phone navigation** — the two-button control becomes the pill: Overview,
+  Search, the current section (back to its list), Menu. Menu opens a bottom
+  sheet: enterprise switcher, the destinations as labelled icon tiles in
+  their groups, theme and account. Needs one navigation definition first, a
+  list the rail, the drawer, the pill and the command palette all read;
+  today it is eleven hand-written blocks in `app-shell.tsx`. A narrow window
+  with a mouse should keep the rail instead of getting the pill — the
+  sidebar's phone switch (`useIsMobile`) looks at width alone. Page actions
+  stay in the page header: "New …" as a "+" button, Edit and Delete in a
+  "⋯" menu. The pill hides while a sheet or the keyboard is open.
+
+- **One way to edit an item** — there are four: a pencil on hover (cards),
+  Edit and Delete on hover (table rows), text buttons (detail pages) and a
+  "⋯" menu (Administration). Settle on one per surface with the navigation
+  above, since the "⋯" menu is what the phone header needs anyway.
+
+- **Canvases on a phone** — the landscape fits itself to 7% zoom, a tap on a
+  node navigates away at once (highlighting is hover-only), the filter bar
+  wraps to three lines over a canvas that reserves one, and the legend sits
+  under the menu control and over the minimap. Wanted: filters behind one
+  chip that opens a sheet, a tap that selects and shows a card with "Open",
+  no minimap, the legend folded away. The BPMN modeler becomes the viewer
+  below `md`, with a note that editing wants a larger screen.
+
+- **Tables on a phone** — building blocks (seven columns) and the landscape
+  table now scroll sideways. Readable, not good: either rows as cards or a
+  first column that stays put.
+
+- **Value stream stages clip at 320 px** — the stage strip is
+  `overflow-hidden` and the last stage is cut on the narrowest phones. Let it
+  scroll.
+
+- **Web app manifest** — so "Add to Home Screen" opens OpenEAM full-screen,
+  without the browser's bars, which is what gives the pill and the canvases
+  their room. Name and icons are instance branding (D-23), so the API serves
+  it rather than a static file; with it `theme-color`, an Apple touch icon
+  and `viewport-fit=cover` with safe-area insets. No service worker and no
+  offline mode: the model is behind a session and has to be current, and a
+  cache in front of it buys little for the invalidation bugs it brings. Goes
+  in with the phone navigation.
+
+- **The search hint says ⌘K everywhere** — Ctrl K off Apple platforms, and
+  no hint where there is no keyboard.
+
 ## Project hygiene
 
 - **Releases mean nothing yet** (T4.4) — every package is `0.0.0`, there are no

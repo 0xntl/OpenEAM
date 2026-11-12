@@ -19,6 +19,10 @@ Run `pnpm lint` (repo-wide `biome check .`, per [CONTRIBUTING.md](CONTRIBUTING.m
 
 The sidebar defaults to collapsed/icon-only (`SidebarProvider defaultOpen={false}` in `app-shell.tsx`, persisted via a cookie once the user toggles it) — that's the primary, expected state, not a fallback for small screens. Design and structure the nav for icon+tooltip wayfinding first; anything that only reads correctly when expanded (group labels, longer item names) is a bonus for users who happen to keep it open, not something to rely on for disambiguation. E.g. `SidebarGroupLabel` section headers (Business/Architecture) are invisible in the default collapsed state — icons alone still need to make sense grouped or not.
 
+## Dense on purpose; phones read, touch follows the pointer
+
+The compact sizing (28 px buttons, 12–14 px text) is a deliberate choice: seeing much at once and reaching things in few clicks is part of the UX of a tool like this. Do not "fix" it by enlarging things for mouse and trackpad. Larger targets and input text belong under `pointer-coarse:` only; layout changes for phones belong below `md`. A phone is for looking up, reviewing and light edits — the canvases are view-only there. What is still open is in [docs/BACKLOG.md](docs/BACKLOG.md) under "Phones and touch".
+
 ## Docs update order
 
 When a change touches more than one doc: [docs/VISION.md](docs/VISION.md) → [docs/USE-CASES.md](docs/USE-CASES.md) → [docs/USER-STORIES.md](docs/USER-STORIES.md) → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) → [docs/DATABASE.md](docs/DATABASE.md) → [docs/DECISIONS.md](docs/DECISIONS.md) → [docs/GLOSSARY.md](docs/GLOSSARY.md) → [docs/BACKLOG.md](docs/BACKLOG.md) → [docs/IDEAS.md](docs/IDEAS.md) → `README.md`. Vision is the foundation everything else derives from or links back to; README summarizes the settled state last.
