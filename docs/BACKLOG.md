@@ -139,16 +139,20 @@ the collapsed rail scrolls on a short window. What remains:
   visible. Separately, for every pointer: nothing below 12 px; the list cards
   use 10 px for chips and counts.
 
-- **Phone navigation** — the two-button control becomes the pill: Overview,
-  Search, the current section (back to its list), Menu. Menu opens a bottom
-  sheet: enterprise switcher, the destinations as labelled icon tiles in
-  their groups, theme and account. Needs one navigation definition first, a
+- **Phone navigation** — the two-button control becomes the pill, three
+  slots: Menu, Search, and one that depends on the page — back to the list on
+  a detail page, "New …" on a list. No slot for the overview: a home button
+  is a reset for when you are lost, and the menu does that better (it shows
+  every destination and where you are); it earns one when the overview is
+  somewhere you go for something. Menu opens a bottom sheet: enterprise
+  switcher, the destinations as labelled icon tiles in their groups, theme
+  and account. Needs one navigation definition first, a
   list the rail, the drawer, the pill and the command palette all read;
   today it is eleven hand-written blocks in `app-shell.tsx`. A narrow window
   with a mouse should keep the rail instead of getting the pill — the
-  sidebar's phone switch (`useIsMobile`) looks at width alone. Page actions
-  stay in the page header: "New …" as a "+" button, Edit and Delete in a
-  "⋯" menu. The pill hides while a sheet or the keyboard is open.
+  sidebar's phone switch (`useIsMobile`) looks at width alone. Edit and
+  Delete stay in the page header, in a "⋯" menu. The pill hides while a
+  sheet or the keyboard is open.
 
 - **One way to edit an item** — there are four: a pencil on hover (cards),
   Edit and Delete on hover (table rows), text buttons (detail pages) and a
