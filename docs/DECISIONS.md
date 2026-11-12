@@ -747,3 +747,59 @@ stays even when `TEST_DATABASE_URL` is set by hand.
 **Revisit when:** the test harness (BACKLOG T1.3) lands and wants a database
 per test run rather than one shared one, or when the API gets its own build
 output for tests, which would remove the stale-build caveat.
+
+---
+
+## D-28 · Tests run the real services inside a transaction that is rolled back
+
+**Decided:** the API's tests (Vitest, `apps/api/test/`) call the real
+service classes against the test stack's database (D-27), each test inside
+one transaction that is rolled back when it ends. `test/harness.ts` builds
+the services by hand around that transaction and starts every test by
+deleting all accounts inside it. Nothing is mocked and nothing is committed.
+
+**Why a rolled-back transaction and not a database per run or cleaning up
+afterwards:** D-27 left this open. A rollback gives every test the same
+starting point for the price of one statement, cannot leave anything behind
+when a test fails or a run is killed, and keeps the one database the test
+stack already has: `pnpm test` can run while `pnpm dev:test` is serving it.
+It also lets a test rearrange what is instance-wide. "The last admin cannot
+step down" needs a world with exactly one admin, which no test could arrange
+in a shared database without breaking it for the others. Cleaning up row by
+row gets that wrong the first time a test forgets something; a database per
+run would be a second way to create one, next to `pnpm db:test`.
+
+**Why the seeded enterprises stay and the accounts go:** the example
+enterprises are bystanders, other people's data that a test's own accounts
+must never see, which is a better test of the enterprise boundary than an
+empty database. Accounts are different: who is an admin is a fact about the
+whole instance, so tests can only agree on it if each starts from none.
+
+**Why the services are built by hand and not by Nest:** every service takes
+the database in its constructor, so a test can hand it the transaction
+directly. Booting the module graph reaches the same objects by a longer
+road: it needs `@nestjs/testing`, depends on the test transform emitting
+decorator metadata the way `tsc` does, and writes `schema.gql` on every
+run. The wiring itself is exercised where it matters:
+`pnpm db:test` boots the built API and seeds through it, in CI on every run.
+
+**Why accounts are written as rows:** signing up or using a setup link
+hashes a password with scrypt, about 100 ms each, in every test that needs
+an account. The harness inserts the account and a session and then resolves
+the principal through `AuthService.resolveSession`, as the guard does. One
+test goes the whole way through sign-up and a setup link, so the shortcut is
+known to end in the same principal.
+
+**What this costs:** a transaction is one connection, so there are no tests
+of two requests racing, and nothing that goes through HTTP — resolvers, the
+guard, `@AdminOnly()`. Inside the transaction `now()` stands still. Test
+files run one after the other, in one worker. And where a service runs
+several queries at once (`Promise.all`), they queue on the single
+connection, which `pg` 8 does with a deprecation warning and `pg` 9 will
+refuse.
+
+**Revisit when:** the security tests (BACKLOG) need requests through the
+guard, which means booting the app and a way to reset the database that
+does not depend on sharing a connection; when `pg` 9 arrives; or when the
+suite is slow enough to want parallel workers, each of which would need a
+database of its own.

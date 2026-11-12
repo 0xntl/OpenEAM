@@ -11,6 +11,7 @@ description: How to launch and verify the OpenEAM app end-to-end (web + api + db
 
 - `pnpm dev:test` serves **http://127.0.0.1:3010** (API on `:4010`) against the database `<name>_test`, creating and seeding it on first use. Sign in as `admin@openeam.test` / `openeam-test` (instance admin, sees `/admin`). It holds the four public example enterprises; Meridian Mutual is the large one.
 - `pnpm db:test` drops and reseeds that database. Stop `pnpm dev:test` first. Run it after a migration, or whenever a check left data behind.
+- `pnpm test` runs the API's tests in that same database, each inside a transaction that is rolled back: it changes nothing there and can run while `pnpm dev:test` is up. It needs the database to exist and be migrated, nothing else.
 - The web side is a Vite dev server on the working tree, so it shows current frontend code. The API runs from `apps/api/dist` as built: a running `pnpm dev` keeps that current; without one, build the API before trusting an API change here.
 - It is `127.0.0.1` on purpose. Cookies ignore ports, so on `localhost` signing in would replace the development instance's session.
 
