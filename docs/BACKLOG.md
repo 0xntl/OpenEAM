@@ -31,22 +31,26 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 - **Security tests in CI** — the measures above were verified with a hand-run
   script (41 checks: session handling, CSRF vectors, cross-tenant reads and
   writes through GraphQL and the importer, lockout with forged
-  `X-Forwarded-For`). That script should become the first integration tests
-  once T1.3 lands; until then nothing guards against a regression.
+  `X-Forwarded-For`). Cross-tenant reads and writes and the roles are now
+  tested at the service level (INV-16, `apps/api/test/invariants/access.test.ts`).
+  Everything in the HTTP layer is not: the guard, `@AdminOnly()` on the
+  admin resolvers (which is all that protects `AdminService.setRole`), CSRF,
+  lockout. Those need the harness to boot the app and send requests, which
+  the rolled-back transaction of D-28 does not stretch to.
+
+- **INV-18 does not hold on two paths** — found by the invariant tests, which
+  carry the rule as two skipped tests in
+  `apps/api/test/invariants/admins-and-owners.test.ts`. `addMember()` upserts
+  and sets the role without the last-owner check, so adding the last owner
+  again as editor or viewer demotes them; and `AdminService.deleteUser()`
+  refuses only the last *member*, so the last owner's account can be deleted
+  while anyone else is a member. Either way the enterprise has no explicit
+  owner, and after the first the former owner can leave it with no member at
+  all (INV-16). An instance admin can still repair it. Fix both checks and
+  unskip the tests.
 
 
 ## Foundation
-
-- **Test harness** (T1.3) — there is no test infrastructure at all. Vitest plus a
-  Postgres service container in CI. Everything below that needs a test depends on
-  this existing. Tool choice stays Vitest; the `test` / `test:watch` scripts and
-  the CI step go in with it. The database half exists: `pnpm db:test` creates
-  and seeds one (D-27), and CI can run it against a service container as is.
-
-- **Invariant tests** (T1.4) — turn INV-1 … INV-17 in
-  [ARCHITECTURE.md](ARCHITECTURE.md) into tests. They are already written down as
-  rules; this is the cheapest test anyone will ever write, and the current
-  Definition of Done (lint, typecheck, build) proves only that the code compiles.
 
 - **Round-trip test on export and import** (T1.5) — export, import into an
   empty database, export again, compare. One test covering the widest surface
@@ -55,6 +59,21 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   in `data-bundle.format.ts` is exercised, a newer version being refused, and
   an export by a member of one enterprise while another exists (D-24). The
   2026-10-13 hand-run of exactly these checks is the script to start from.
+  The harness (T1.3, D-28) and the invariant tests through the services
+  (T1.4) are in; this is the next test on top of them.
+
+- **The invariants through the importer** — the invariant tests call the
+  services. The importer is the other way in and checks the same rules for a
+  whole bundle in `data-bundle.validator.ts`, which no test reaches yet. One
+  valid bundle and one broken copy per rule, each refused with the row named.
+  Belongs with T1.5, which needs the bundles anyway.
+
+- **Rules without a constraint can be raced** — INV-17 and INV-18 are a
+  read followed by a write, with nothing in Postgres behind them: two
+  requests at once can each see "another admin exists" and both proceed.
+  INV-5, INV-12 and INV-15 have a unique index as the last line; these two
+  have none. Needs a lock on the rows read (`SELECT … FOR UPDATE`), and a
+  test with two connections, which the harness does not have (D-28).
 
 - **Browser tests** — Playwright against the test stack (D-27), after T1.3.
   Three projects (phone, tablet, desktop) and to begin with only what a unit
@@ -236,11 +255,6 @@ the collapsed rail scrolls on a short window. What remains:
   look for. One file holds the notes and the other points at it, so a
   contributor's assistant gets the same rules whichever it is, and they are
   never maintained twice.
-
-- **The Definition of Done has no test criterion** — [CONTRIBUTING.md](../CONTRIBUTING.md)
-  requires lint, typecheck and build. For code that is not reviewed line by line,
-  those three prove it compiles, not that it works. Add the test step once T1.3
-  lands.
 
 - **UC-7 conflates two different things** — "access restriction" (infrastructure,
   needed in weeks) and "users and permissions" (a product feature for next year)

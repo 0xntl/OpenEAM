@@ -191,8 +191,10 @@ enterprise is a readable 400 naming the id, and the transaction rolls back.
   API runs with `TRUST_PROXY=2` (Caddy, then nginx).
 
 What is deliberately *not* done, and why, is in [DECISIONS.md](DECISIONS.md)
-D-15. Tests for these measures are the point of roadmap T1.3/T1.4; until then
-the checks are a script run by hand (see the commit that introduced them).
+D-15. Membership scoping and roles are tested with the invariants
+([Tests](#tests)); the measures that live in the HTTP layer — the guard,
+CSRF, rate limits, headers — are not yet, and were last checked by a script
+run by hand. That is "Security tests in CI" in [BACKLOG.md](BACKLOG.md).
 
 
 ## The web app (`apps/web`)
@@ -259,7 +261,8 @@ a test, a review comment or a commit message can point at one. Where Postgres
 can express a rule it does, as a CHECK, a partial unique index or a composite
 foreign key — the table in [DATABASE.md](DATABASE.md) says which; the service
 layer still checks first so the user gets a message, not a constraint name.
-Turning them into tests is roadmap T1.4.
+Each rule has tests in `apps/api/test/invariants/`, named by its id; see
+[Tests](#tests).
 
 | Id | Rule | Enforced where |
 | --- | --- | --- |
@@ -282,7 +285,7 @@ Turning them into tests is roadmap T1.4.
 | **INV-17** | There is always at least one active instance admin. The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
 | **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed; delete the enterprise instead. | `enterprises.service.ts` |
 
-Two sharp edges in the current implementations, so you are not surprised by them:
+Three sharp edges in the current implementations, so you are not surprised by them:
 
 - **INV-5 checks less than it claims.** It rejects a second `hosted_on` edge only
   when an existing one is *unbounded* (`validTo` null). It does not check full
@@ -293,6 +296,35 @@ Two sharp edges in the current implementations, so you are not surprised by them
   `common/pg-error.filter.ts` turns it into a 409. Example bundles avoid
   collisions by deriving ids as UUIDv5 from a readable key; see
   [DECISIONS.md](DECISIONS.md).
+- **INV-18 does not hold on two paths.** Adding the last owner again with a
+  lesser role demotes them, and deleting the last owner's account is allowed
+  while the enterprise has other members. Both leave an enterprise without
+  an explicit owner. Two skipped tests state the rule; the defect is in
+  [BACKLOG.md](BACKLOG.md).
+
+### Tests
+
+`pnpm test` runs Vitest in `apps/api/test/`. A test gets the API's real
+services over the real Postgres of the test stack, inside a transaction that
+is rolled back when the test ends (`test/harness.ts`, D-28), so nothing a
+test writes outlives it and the seeded database stays as `pnpm db:test`
+made it. The suite refuses to run against a database whose name does not
+end in `_test`, with the same guard the test stack uses
+(`scripts/test-database.mjs`).
+
+`test/invariants/` holds the rules of the table above, one `describe` per
+id. Each is tested the way a caller meets it: the service refuses with its
+own message, the nearest valid input goes through, and where Postgres
+backs the rule a statement that goes around the service is refused by the
+named constraint. A test that would pass with its rule removed is a defect
+in the test; breaking the rule in the source and watching the test go red
+is how to check a new one.
+
+What these tests do not reach: resolvers and the `AuthGuard` (nothing here
+sends an HTTP request, so `@AdminOnly()` and "sign in required" are
+untested), the importer's own check of the same rules in
+`data-bundle.validator.ts`, and anything that needs two connections — the
+check-then-write races behind INV-17 and INV-18, which no constraint backs.
 
 ## Example bundles
 
@@ -343,8 +375,10 @@ Checks that write belong there, not in the development database. The script,
 in [DECISIONS.md](DECISIONS.md).
 
 Before calling anything done: `pnpm lint` (repo-wide), `pnpm -r typecheck`,
-`pnpm -r build`. There is no test suite yet — that is roadmap T1.3, and it is why
-those three currently prove that the code compiles, not that it works.
+`pnpm -r build`, `pnpm test`. The first three prove that the code compiles;
+the tests are what says a rule still holds, so a change to a rule comes with
+a change to its test. `pnpm test` needs the test database (`pnpm db:test`,
+once and after every migration) and neither a build nor a running instance.
 
 `.claude/skills/verify/SKILL.md` has the details for driving the running app
 headlessly.
