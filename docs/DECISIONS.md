@@ -803,3 +803,85 @@ guard, which means booting the app and a way to reset the database that
 does not depend on sharing a connection; when `pg` 9 arrives; or when the
 suite is slow enough to want parallel workers, each of which would need a
 database of its own.
+
+---
+
+## D-29 · An active admin is one who can sign in
+
+**Decided:** INV-17 ("there is always at least one active instance admin")
+counts an admin only if the account is not deactivated *and* has a password.
+An admin created by another admin has none until the setup link is used, and
+until then does not count: the admin who created them cannot step down, be
+deactivated or be deleted on the strength of that account.
+
+**Why:** the rule exists so that someone can always run the instance, and an
+account that cannot sign in runs nothing. Counted, it let the last usable
+admin step down right after appointing a successor; if the successor's link
+then ran out after its seven days, nobody was left to issue another, and only
+the database could repair it. The invariant tests found this.
+
+**Why "has a password" and not "has signed in" or "has an unexpired link":**
+a password is the one thing that separates an account that can sign in from
+one that cannot, and it is a column, not a guess about the future. A pending
+link may never be used. A first sign-in adds nothing a password does not
+already say, and would need a column there is no other use for.
+
+**What it rules out:** handing an instance over in one step. The order is
+appoint, wait until the new admin has set their password, then step down; the
+refusal says so when a pending admin is the reason. A password reset does not
+make an admin inactive, because a reset link leaves the old password in place
+until it is used.
+
+**In the tests:** the harness writes accounts as rows (D-28). They now carry a
+password hash, computed once per run and shared, since an account without one
+would not be the admin a test means.
+
+**Revisit when:** there is a second way to sign in (single sign-on, passkeys).
+"Has a password" then stops being the same as "can sign in", and the check
+has to ask whatever the new answer is.
+
+---
+
+## D-30 · A bundle whose process steps contradict its diagram is refused
+
+**Decided:** on import, a process that carries a diagram must carry BPMN 2.0,
+and its `processSteps` must be exactly the named tasks of that diagram, in
+the order a save in the app would store them (INV-7). Anything else is
+reported like every other violation and nothing is written. A process without
+a diagram keeps whatever steps the bundle lists.
+
+**Why this was missing:** the importer does not go through the services
+(D-16), so each rule has to be repeated in the bundle validator, and this one
+was not: parsing BPMN is asynchronous and the validator was a synchronous
+function over rows. A bundle could store a diagram the modeller cannot open,
+and steps that had nothing to do with it. `validateDiagrams()` now runs
+beside `validateBundle()`, with the same `bpmn-steps.ts` the service uses.
+
+**Why refuse and not replace the steps from the diagram:** replacing is what
+a save in the app does, and it would have been the smaller change. But the
+importer writes what a bundle holds or nothing. It corrects no other rule, and
+steps derived on the way in would get new ids and timestamps, so an export
+after an import would no longer be the bundle that went in — the property the
+round-trip test holds the whole format to. A bundle that says two different
+things about a process is wrong; which half is right is not for the importer
+to guess.
+
+**Why steps without a diagram are left alone:** there is nothing to hold them
+to, and it is how a process is described before anyone has drawn it. Ten
+processes in the public example bundles are exactly that.
+
+**What this costs:** a bundle now depends on how steps are derived. If
+`bpmn-steps.ts` changes (another task type counted, a different order through
+a gateway), bundles exported before the change stop importing until their
+steps are derived again. Such a change needs a format version and a migration
+in `data-bundle.format.ts` that does it. And a bundle edited by hand has to
+keep the two in step, which is one more reason the same fact should not be in
+a bundle twice.
+
+**This is a stopgap, not the design.** It closes the hole the tests found.
+What a process step is, and where it comes from, has not been thought through
+as a whole; the questions are in [BACKLOG.md](BACKLOG.md) under "Model and
+data".
+
+**Revisit when:** that work is done. It may end with a bundle carrying no
+steps for a process that has a diagram, which would make this check moot.

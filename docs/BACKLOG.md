@@ -38,36 +38,6 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   lockout. Those need the harness to boot the app and send requests, which
   the rolled-back transaction of D-28 does not stretch to.
 
-- **INV-18 does not hold on two paths** — found by the invariant tests, which
-  carry the rule as two skipped tests in
-  `apps/api/test/invariants/admins-and-owners.test.ts`. `addMember()` upserts
-  and sets the role without the last-owner check, so adding the last owner
-  again as editor or viewer demotes them; and `AdminService.deleteUser()`
-  refuses only the last *member*, so the last owner's account can be deleted
-  while anyone else is a member. Either way the enterprise has no explicit
-  owner, and after the first the former owner can leave it with no member at
-  all (INV-16). An instance admin can still repair it. Fix both checks and
-  unskip the tests.
-
-- **INV-17 counts an admin who cannot sign in** — found while writing the
-  invariant tests; skipped test in the same file. `assertNotLastAdmin()`
-  counts every admin that is not deactivated. An admin created by another
-  admin has no password until the setup link is used, so with one such
-  account present the last admin who can actually sign in may step down, or
-  be deactivated or deleted. If the link then runs out after its seven days,
-  the instance has no usable admin and only the database can repair it.
-  Decide what "active" means (has a password is the obvious reading), then
-  fix the check and unskip the test.
-
-- **An organization unit id from another enterprise is told apart from one
-  that does not exist** — skipped test in
-  `apps/api/test/invariants/access.test.ts`. `ActorsService.validate()`
-  looks the unit up without the caller's enterprises and answers "not found"
-  or "must belong to the same enterprise" accordingly, so any member of any
-  enterprise can test whether a unit id exists. Ids are random UUIDs and
-  nothing else is revealed, so this is small; it is the one lookup by id
-  found that does not read as "not found" (INV-16). Scope the lookup.
-
 
 ## Foundation
 
@@ -127,16 +97,31 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 
 ## Model and data
 
-- **The importer does not check INV-7** — found by the export/import tests;
-  skipped test in `apps/api/test/data-exchange/bundle-rules.test.ts`.
-  `data-bundle.validator.ts` checks every other structural invariant but not
-  this one: a bundle's `bpmnXml` is stored whether or not it parses as BPMN
-  2.0, and its `processSteps` are taken as given, not derived from the
-  diagram. ARCHITECTURE.md ("INV-1 … INV-15 are checked") and DATABASE.md
-  both say otherwise. A process imported that way opens a modeller that
-  cannot read its own diagram. Parse the XML during validation (it is
-  asynchronous, the validator is not) and decide whether steps that
-  disagree with the diagram are an error or are replaced.
+- **Process steps and the diagram need thinking through as a whole** — the
+  importer now refuses a bundle whose steps contradict its diagram (D-30).
+  That closes a hole; it is not a design. What is unsettled:
+  - *A step has no identity.* Every diagram save deletes a process's steps
+    and inserts them again, so a step's id lasts until the next save and
+    nothing can point at one: no actor on a step, no building block that
+    supports it, no information object it reads.
+  - *There are two kinds of step and the app knows one.* Steps derived from
+    a diagram, and steps listed in a bundle for a process nobody has drawn
+    (ten processes in the example bundles). The second kind cannot be made
+    or edited in the app, and the first diagram saved for such a process
+    replaces them without a word.
+  - *A bundle says the same thing twice.* `bpmnXml` and `processSteps`
+    both describe the steps of a drawn process, which is what made the
+    contradiction possible. Whether a bundle should carry steps for a
+    process that has a diagram at all is open.
+  - *Import depends on how steps are derived.* A change to `bpmn-steps.ts`
+    makes earlier exports unimportable unless a format migration derives
+    their steps again (D-30).
+  - *"Position" is an artefact for anything but a straight line.* The order
+    is a breadth-first walk from the start events; through a gateway or
+    parallel branches it means little, and unnamed tasks are dropped.
+
+  Decide what a step is for first (a list to read, or something the rest of
+  the model links to), then which of these follow.
 
 - **Editing a building block erases its dated organization-unit history** —
   `replaceAssignments()` deletes every `building_block_organization_units`
