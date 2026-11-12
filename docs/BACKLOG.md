@@ -31,29 +31,53 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 - **Security tests in CI** — the measures above were verified with a hand-run
   script (41 checks: session handling, CSRF vectors, cross-tenant reads and
   writes through GraphQL and the importer, lockout with forged
-  `X-Forwarded-For`). That script should become the first integration tests
-  once T1.3 lands; until then nothing guards against a regression.
+  `X-Forwarded-For`). Cross-tenant reads and writes and the roles are now
+  tested at the service level (INV-16, `apps/api/test/invariants/access.test.ts`).
+  Everything in the HTTP layer is not: the guard, `@AdminOnly()` on the
+  admin resolvers (which is all that protects `AdminService.setRole`), CSRF,
+  lockout. Those need the harness to boot the app and send requests, which
+  the rolled-back transaction of D-28 does not stretch to.
 
 
 ## Foundation
 
-- **Test harness** (T1.3) — there is no test infrastructure at all. Vitest plus a
-  Postgres service container in CI. Everything below that needs a test depends on
-  this existing. Tool choice stays Vitest; the `test` / `test:watch` scripts and
-  the CI step go in with it.
+- **A red check can still reach `main`** — CI runs lint, typecheck, build
+  and the tests on every push and pull request, and container images are
+  only built once they pass, but nothing on `main` requires them: there is
+  no branch protection and no ruleset, so a push lands whatever the checks
+  say. Make "Lint, typecheck, build" and "Tests" required status checks on
+  `main`. A required check can only be met before the merge, so this ends
+  pushing straight to `main`: every change goes through a pull request, a
+  self-merged one included.
 
-- **Invariant tests** (T1.4) — turn INV-1 … INV-17 in
-  [ARCHITECTURE.md](ARCHITECTURE.md) into tests. They are already written down as
-  rules; this is the cheapest test anyone will ever write, and the current
-  Definition of Done (lint, typecheck, build) proves only that the code compiles.
+- **Rules without a constraint can be raced** — INV-17 and INV-18 are a
+  read followed by a write, with nothing in Postgres behind them: two
+  requests at once can each see "another admin exists" and both proceed.
+  INV-5, INV-12 and INV-15 have a unique index as the last line; these two
+  have none. Needs a lock on the rows read (`SELECT … FOR UPDATE`), and a
+  test with two connections, which the harness does not have (D-28).
 
-- **Round-trip test on export and import** (T1.5) — export, import into an
-  empty database, export again, compare. One test covering the widest surface
-  in the codebase, and it guards the exact path private models are restored
-  from. Include a version-0 bundle (no `formatVersion`) so the migration chain
-  in `data-bundle.format.ts` is exercised, a newer version being refused, and
-  an export by a member of one enterprise while another exists (D-24). The
-  2026-10-13 hand-run of exactly these checks is the script to start from.
+- **Browser tests** — Playwright against the test stack (D-27), after T1.3.
+  Three projects (phone, tablet, desktop) and to begin with only what a unit
+  test cannot see: every route renders without an error, no page is wider
+  than its viewport, the navigation is reachable at every size, and one
+  create–edit–delete flow per entity type. The checks that found the phone
+  layout defects were run by hand; this is them, kept. Accessibility checks
+  (axe) ride on the same runs once they exist. Not screenshot comparison yet:
+  the interface still moves too much for the diffs to mean anything.
+
+- **Generated GraphQL types on the web** — every route hand-writes the
+  interfaces for its query results, so renaming a field in the API breaks
+  nothing at compile time and the page fails at runtime instead. graphql-codegen
+  from the committed `apps/api/schema.gql`; typecheck then catches it. This
+  sat in IDEAS "for when the first real operations land", and they have. The
+  shared `@openeam/graphql` package from that note waits for a second consumer.
+
+- **A second seeded account** — the test stack has one instance admin. The
+  read-only paths (a viewer who must not see Edit, a member of one enterprise
+  who must not see another) need a viewer and an outsider seeded beside it,
+  created the way the Administration page creates them. Add with the first
+  test that needs one.
 
 - **Drift checks** (T1.6) — fail CI when the committed `schema.gql` differs from
   the generated one, or when `drizzle-kit generate` would produce a migration.
@@ -81,6 +105,59 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   than every push.
 
 ## Model and data
+
+- **Process steps and the diagram need thinking through as a whole** — the
+  importer now refuses a bundle whose steps contradict its diagram (D-30).
+  That closes a hole; it is not a design. What is unsettled:
+  - *A step has no identity.* Every diagram save deletes a process's steps
+    and inserts them again, so a step's id lasts until the next save and
+    nothing can point at one: no actor on a step, no building block that
+    supports it, no information object it reads.
+  - *There are two kinds of step and the app knows one.* Steps derived from
+    a diagram, and steps listed in a bundle for a process nobody has drawn
+    (ten processes in the example bundles). The second kind cannot be made
+    or edited in the app, and the first diagram saved for such a process
+    replaces them without a word.
+  - *A bundle says the same thing twice.* `bpmnXml` and `processSteps`
+    both describe the steps of a drawn process, which is what made the
+    contradiction possible. Whether a bundle should carry steps for a
+    process that has a diagram at all is open.
+  - *Import depends on how steps are derived.* A change to `bpmn-steps.ts`
+    makes earlier exports unimportable unless a format migration derives
+    their steps again (D-30).
+  - *"Position" is an artefact for anything but a straight line.* The order
+    is a breadth-first walk from the start events; through a gateway or
+    parallel branches it means little, and unnamed tasks are dropped.
+
+  Decide what a step is for first (a list to read, or something the rest of
+  the model links to), then which of these follow.
+
+- **Editing a building block erases its dated organization-unit history** —
+  `replaceAssignments()` deletes every `building_block_organization_units`
+  row of the block and writes the submitted units back without dates
+  (INV-8). A model imported from a bundle can carry dated assignments
+  ("this moved from IT to the Data Office in 2025"); renaming such a block
+  in the UI is enough to lose them, silently. The INV-8 test pins the
+  behaviour as it is. ARCHITECTURE.md contradicts itself on which this
+  table should be: the append-and-close list includes it, INV-8 excludes
+  it. Decide, then either keep dated rows on edit or say plainly that the
+  form flattens them.
+
+- **A temporal link cannot be closed through the API** — a second open
+  `hosted_on` edge, capability–information link or capability–actor link is
+  refused with "close it (set validTo) before adding another" (INV-5, 12,
+  15), but relationships and links have only create and delete mutations.
+  The one way to follow the advice is to delete the link, which removes the
+  history it was for, or to import a bundle. An update mutation that sets
+  `validTo`, and the same from the detail pages.
+
+- **Reading a capability takes about 60 ms** — measured in the test suite
+  against the test database, on an enterprise with almost nothing in it:
+  `BusinessCapabilitiesService.findOne` (and `create` and `update`, which
+  read back through it) took 60–80 ms per call where a building block took
+  7 ms. Not investigated. The query nests every link of every linked
+  building block, so planning time is the first thing to look at;
+  `findAll` runs the same shape for a whole enterprise.
 
 - **No mutation to link a building block to a business capability** —
   `buildingBlockCapabilities` (which ABBs realize which capability) can only be set
@@ -232,11 +309,6 @@ the collapsed rail scrolls on a short window. What remains:
   look for. One file holds the notes and the other points at it, so a
   contributor's assistant gets the same rules whichever it is, and they are
   never maintained twice.
-
-- **The Definition of Done has no test criterion** — [CONTRIBUTING.md](../CONTRIBUTING.md)
-  requires lint, typecheck and build. For code that is not reviewed line by line,
-  those three prove it compiles, not that it works. Add the test step once T1.3
-  lands.
 
 - **UC-7 conflates two different things** — "access restriction" (infrastructure,
   needed in weeks) and "users and permissions" (a product feature for next year)

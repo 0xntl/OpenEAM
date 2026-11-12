@@ -67,7 +67,7 @@ export class ActorsService {
 
   async create(principal: Principal, input: ActorInput): Promise<Actor> {
     assertCan(principal, 'model.write', input.enterpriseId);
-    await this.validate(input, input.enterpriseId);
+    await this.validate(principal, input, input.enterpriseId);
     const [inserted] = await this.db
       .insert(schema.actors)
       .values({
@@ -92,7 +92,7 @@ export class ActorsService {
     const existing = await this.findOne(principal, id);
     if (!existing) throw new NotFoundException(`Actor ${id} not found`);
     assertCan(principal, 'model.write', existing.enterpriseId);
-    await this.validate(input, existing.enterpriseId);
+    await this.validate(principal, input, existing.enterpriseId);
 
     await this.db
       .update(schema.actors)
@@ -200,7 +200,14 @@ export class ActorsService {
   // to belong to the same enterprise. A team actor pointing at the unit that
   // already models it is the whole reason the column exists — without the
   // check, teams quietly end up modelled twice under two names.
-  private async validate(input: ActorInput, enterpriseId: string): Promise<void> {
+  // The unit is looked up within the caller's enterprises, so one that exists
+  // where the caller is not a member reads as not found (INV-16); "the same
+  // enterprise" is said only about two enterprises the caller can see.
+  private async validate(
+    principal: Principal,
+    input: ActorInput,
+    enterpriseId: string,
+  ): Promise<void> {
     if (!input.organizationUnitId) return;
 
     if (!organizationUnitAllowed(input.kind, input.organizationUnitId)) {
@@ -208,7 +215,11 @@ export class ActorsService {
     }
 
     const unit = await this.db.query.organizationUnits.findFirst({
-      where: (t, { eq: equals }) => equals(t.id, input.organizationUnitId as string),
+      where: (t, { and, eq: equals, inArray }) =>
+        and(
+          equals(t.id, input.organizationUnitId as string),
+          inArray(t.enterpriseId, principal.enterpriseIds),
+        ),
     });
     if (!unit)
       throw new BadRequestException(`Organization unit ${input.organizationUnitId} not found`);

@@ -6,7 +6,9 @@
     "dev": "dotenv -e ../../.env -- nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "biome check ."
   },
   "dependencies": {
@@ -39,6 +41,7 @@
     "@types/pg": "8.21.0",
     "dotenv-cli": "11.0.0",
     "ts-loader": "9.6.2",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
   }
 }

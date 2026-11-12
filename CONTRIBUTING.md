@@ -15,6 +15,37 @@ pnpm dev
 Web on http://localhost:3000, API on http://localhost:4000. The first account
 you create in the web app can always be created; see README.
 
+For anything that writes — trying a change, a script, a check you would not
+want in your own model — there is a second instance with its own database:
+
+```bash
+pnpm dev:test   # http://127.0.0.1:3010, admin@openeam.test / openeam-test
+pnpm db:test    # drop that database and seed it again
+```
+
+It holds the public example enterprises and is created on first use. The API
+side runs the built `apps/api/dist`, which a running `pnpm dev` keeps current.
+
+## Tests
+
+```bash
+pnpm db:test      # once, and again after a migration: the database the tests use
+pnpm test         # the whole suite, about twenty seconds
+pnpm test:watch   # re-run what a change touches
+```
+
+The tests run the API's services against that same test database, each test
+inside a transaction that is rolled back, so they change nothing in it and
+can run while `pnpm dev` or `pnpm dev:test` is up. They live in
+`apps/api/test/`; `harness.ts` there says what a test gets and what it
+cannot reach.
+
+A test has to fail when the rule it names is broken. When you add one, break
+the rule in the source once and watch it go red. When a test fails, the rule
+or the code is wrong — do not loosen the test to get past it; if the rule
+really does not hold, skip the test with a note saying so and put the defect
+in [docs/BACKLOG.md](docs/BACKLOG.md).
+
 ## Before opening a PR
 
 Run the same checks CI runs:
@@ -24,13 +55,14 @@ pnpm lint
 pnpm check:examples   # icon ids in examples/*.json resolve
 pnpm -r typecheck
 pnpm -r build
+pnpm test             # needs `pnpm db:test` once, see above
 ```
 
 Branch off `main`. Keep PRs focused.
 
 ## Before changing code
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the three packages, says where the business rules live, and lists the invariants (INV-1 … INV-17) the model depends on, and [docs/DATABASE.md](docs/DATABASE.md) is the schema table by table, including which invariants Postgres enforces itself. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the EAM vocabulary as this codebase uses it — the terms are TOGAF's and used deliberately, so a loose one is a defect rather than a style choice.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) maps the three packages, says where the business rules live, and lists the invariants (INV-1 … INV-18) the model depends on, and [docs/DATABASE.md](docs/DATABASE.md) is the schema table by table, including which invariants Postgres enforces itself. [docs/GLOSSARY.md](docs/GLOSSARY.md) defines the EAM vocabulary as this codebase uses it — the terms are TOGAF's and used deliberately, so a loose one is a defect rather than a style choice.
 
 ## Bigger decisions
 

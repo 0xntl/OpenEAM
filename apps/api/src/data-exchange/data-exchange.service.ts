@@ -16,7 +16,7 @@ import { grantMembership, type Principal } from '../auth/principal';
 import { DATABASE } from '../db.module';
 import { CURRENT_FORMAT_VERSION, generator } from './data-bundle.format';
 import type { DataBundle } from './data-bundle.schema';
-import { type BundleIssue, validateBundle } from './data-bundle.validator';
+import { type BundleIssue, validateBundle, validateDiagrams } from './data-bundle.validator';
 
 // Orders rows of a self-referencing table so parents precede children,
 // satisfying the FK on insert. Rows with dangling or cyclic parent
@@ -236,7 +236,7 @@ export class DataExchangeService {
   async import(principal: Principal, bundle: DataBundle): Promise<void> {
     // The invariants the services enforce, applied to the whole bundle up
     // front (D-16). Nothing is written if anything is wrong.
-    const issues = validateBundle(bundle);
+    const issues = [...validateBundle(bundle), ...(await validateDiagrams(bundle))];
     if (issues.length > 0) {
       throw new BadRequestException({ message: 'The bundle violates model rules', issues });
     }

@@ -703,3 +703,185 @@ this decision only makes a tag mean something.
 
 **Revisit when:** a second production host exists, when a branch wants its
 own preview environment, or when someone self-hosts on arm64.
+
+---
+
+## D-27 · A test stack beside the development instance, seeded through the API
+
+**Decided:** `pnpm dev:test` runs a second instance against its own database
+(`DATABASE_URL`'s name plus `_test`), and `pnpm db:test` drops and reseeds
+it: one admin account with a published password and every `examples/*.json`.
+One script, `scripts/test-stack.mjs`, does both. Anything that writes for
+the sake of checking something — by hand, by script, by the browser tests
+once they exist — runs there. The development database is nobody's fixture.
+
+**Why a real stack and not a mocked API:** the rules live in the API
+(the invariants, membership scoping, the importer's validation). A mocked
+GraphQL layer is a second implementation of them that drifts, and a check
+that passes against it proves the mock. The whole stack is one Postgres
+container away, so there is nothing to work around.
+
+**Why seeded through the API:** the script signs the first account up and
+posts the bundles to the import endpoint, exactly as a person would. Rows
+written by SQL would need the password hashing and the import logic a
+second time, and would keep loading after the API had started refusing them.
+It also means the API gains nothing for this: no seed entry point ships in
+the production image.
+
+**Why 127.0.0.1:** cookies are scoped to the host and ignore the port. On
+`localhost:3010` signing in would overwrite the session of the development
+instance on `localhost:3000` in the same browser. A different host name
+keeps the two apart.
+
+**Why it runs the built API:** the test API starts from `apps/api/dist`.
+Two `nest start --watch` processes would compile into the same folder, and
+`nest build` clears it first, which would break a running `pnpm dev`. So
+the script builds only when there is no build yet and otherwise takes what
+`pnpm dev` keeps current. The price is that with no `pnpm dev` running an
+API change needs a build before it shows up here.
+
+**The guard:** the script refuses a database whose name does not end in
+`_test`. That is the whole protection against dropping the wrong one, so it
+stays even when `TEST_DATABASE_URL` is set by hand.
+
+**Revisit when:** the test harness (BACKLOG T1.3) lands and wants a database
+per test run rather than one shared one, or when the API gets its own build
+output for tests, which would remove the stale-build caveat.
+
+---
+
+## D-28 · Tests run the real services inside a transaction that is rolled back
+
+**Decided:** the API's tests (Vitest, `apps/api/test/`) call the real
+service classes against the test stack's database (D-27), each test inside
+one transaction that is rolled back when it ends. `test/harness.ts` builds
+the services by hand around that transaction and starts every test by
+deleting all accounts inside it. Nothing is mocked and nothing is committed.
+
+**Why a rolled-back transaction and not a database per run or cleaning up
+afterwards:** D-27 left this open. A rollback gives every test the same
+starting point for the price of one statement, cannot leave anything behind
+when a test fails or a run is killed, and keeps the one database the test
+stack already has: `pnpm test` can run while `pnpm dev:test` is serving it.
+It also lets a test rearrange what is instance-wide. "The last admin cannot
+step down" needs a world with exactly one admin, which no test could arrange
+in a shared database without breaking it for the others. Cleaning up row by
+row gets that wrong the first time a test forgets something; a database per
+run would be a second way to create one, next to `pnpm db:test`.
+
+**Why the seeded enterprises stay and the accounts go:** the example
+enterprises are bystanders, other people's data that a test's own accounts
+must never see, which is a better test of the enterprise boundary than an
+empty database. Accounts are different: who is an admin is a fact about the
+whole instance, so tests can only agree on it if each starts from none.
+
+**Why the services are built by hand and not by Nest:** every service takes
+the database in its constructor, so a test can hand it the transaction
+directly. Booting the module graph reaches the same objects by a longer
+road: it needs `@nestjs/testing`, depends on the test transform emitting
+decorator metadata the way `tsc` does, and writes `schema.gql` on every
+run. The wiring itself is exercised where it matters:
+`pnpm db:test` boots the built API and seeds through it, in CI on every run.
+
+**Why accounts are written as rows:** signing up or using a setup link
+hashes a password with scrypt, about 100 ms each, in every test that needs
+an account. The harness inserts the account and a session and then resolves
+the principal through `AuthService.resolveSession`, as the guard does. One
+test goes the whole way through sign-up and a setup link, so the shortcut is
+known to end in the same principal.
+
+**What this costs:** a transaction is one connection, so there are no tests
+of two requests racing, and nothing that goes through HTTP — resolvers, the
+guard, `@AdminOnly()`. Inside the transaction `now()` stands still. Test
+files run one after the other, in one worker. And where a service runs
+several queries at once (`Promise.all`), they queue on the single
+connection, which `pg` 8 does with a deprecation warning and `pg` 9 will
+refuse.
+
+**Revisit when:** the security tests (BACKLOG) need requests through the
+guard, which means booting the app and a way to reset the database that
+does not depend on sharing a connection; when `pg` 9 arrives; or when the
+suite is slow enough to want parallel workers, each of which would need a
+database of its own.
+
+---
+
+## D-29 · An active admin is one who can sign in
+
+**Decided:** INV-17 ("there is always at least one active instance admin")
+counts an admin only if the account is not deactivated *and* has a password.
+An admin created by another admin has none until the setup link is used, and
+until then does not count: the admin who created them cannot step down, be
+deactivated or be deleted on the strength of that account.
+
+**Why:** the rule exists so that someone can always run the instance, and an
+account that cannot sign in runs nothing. Counted, it let the last usable
+admin step down right after appointing a successor; if the successor's link
+then ran out after its seven days, nobody was left to issue another, and only
+the database could repair it. The invariant tests found this.
+
+**Why "has a password" and not "has signed in" or "has an unexpired link":**
+a password is the one thing that separates an account that can sign in from
+one that cannot, and it is a column, not a guess about the future. A pending
+link may never be used. A first sign-in adds nothing a password does not
+already say, and would need a column there is no other use for.
+
+**What it rules out:** handing an instance over in one step. The order is
+appoint, wait until the new admin has set their password, then step down; the
+refusal says so when a pending admin is the reason. A password reset does not
+make an admin inactive, because a reset link leaves the old password in place
+until it is used.
+
+**In the tests:** the harness writes accounts as rows (D-28). They now carry a
+password hash, computed once per run and shared, since an account without one
+would not be the admin a test means.
+
+**Revisit when:** there is a second way to sign in (single sign-on, passkeys).
+"Has a password" then stops being the same as "can sign in", and the check
+has to ask whatever the new answer is.
+
+---
+
+## D-30 · A bundle whose process steps contradict its diagram is refused
+
+**Decided:** on import, a process that carries a diagram must carry BPMN 2.0,
+and its `processSteps` must be exactly the named tasks of that diagram, in
+the order a save in the app would store them (INV-7). Anything else is
+reported like every other violation and nothing is written. A process without
+a diagram keeps whatever steps the bundle lists.
+
+**Why this was missing:** the importer does not go through the services
+(D-16), so each rule has to be repeated in the bundle validator, and this one
+was not: parsing BPMN is asynchronous and the validator was a synchronous
+function over rows. A bundle could store a diagram the modeller cannot open,
+and steps that had nothing to do with it. `validateDiagrams()` now runs
+beside `validateBundle()`, with the same `bpmn-steps.ts` the service uses.
+
+**Why refuse and not replace the steps from the diagram:** replacing is what
+a save in the app does, and it would have been the smaller change. But the
+importer writes what a bundle holds or nothing. It corrects no other rule, and
+steps derived on the way in would get new ids and timestamps, so an export
+after an import would no longer be the bundle that went in — the property the
+round-trip test holds the whole format to. A bundle that says two different
+things about a process is wrong; which half is right is not for the importer
+to guess.
+
+**Why steps without a diagram are left alone:** there is nothing to hold them
+to, and it is how a process is described before anyone has drawn it. Ten
+processes in the public example bundles are exactly that.
+
+**What this costs:** a bundle now depends on how steps are derived. If
+`bpmn-steps.ts` changes (another task type counted, a different order through
+a gateway), bundles exported before the change stop importing until their
+steps are derived again. Such a change needs a format version and a migration
+in `data-bundle.format.ts` that does it. And a bundle edited by hand has to
+keep the two in step, which is one more reason the same fact should not be in
+a bundle twice.
+
+**This is a stopgap, not the design.** It closes the hole the tests found.
+What a process step is, and where it comes from, has not been thought through
+as a whole; the questions are in [BACKLOG.md](BACKLOG.md) under "Model and
+data".
+
+**Revisit when:** that work is done. It may end with a bundle carrying no
+steps for a process that has a diagram, which would make this check moot.

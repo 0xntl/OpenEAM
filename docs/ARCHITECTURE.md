@@ -157,7 +157,10 @@ runs `data-bundle.validator.ts` over the whole bundle before the transaction:
 every row must belong to one of the bundle's own enterprises, every reference
 must land inside the bundle and in the same enterprise, and the temporal and
 structural invariants (INV-1 … INV-15) are checked with the same functions the
-services use, from `common/invariants.ts`. All violations come back in one
+services use, from `common/invariants.ts`. INV-7 is the one that needs more
+than the rows: each diagram is parsed with the service's own
+`bpmn-steps.ts`, and a process whose steps are not the ones its diagram
+gives refuses the bundle (D-30). All violations come back in one
 response, each with table and id. Inside the transaction, after the bundle's
 enterprises are deleted and before anything is inserted, ids are checked
 against what remains in the database (INV-10): a collision with another
@@ -191,8 +194,10 @@ enterprise is a readable 400 naming the id, and the transaction rolls back.
   API runs with `TRUST_PROXY=2` (Caddy, then nginx).
 
 What is deliberately *not* done, and why, is in [DECISIONS.md](DECISIONS.md)
-D-15. Tests for these measures are the point of roadmap T1.3/T1.4; until then
-the checks are a script run by hand (see the commit that introduced them).
+D-15. Membership scoping and roles are tested with the invariants
+([Tests](#tests)); the measures that live in the HTTP layer — the guard,
+CSRF, rate limits, headers — are not yet, and were last checked by a script
+run by hand. That is "Security tests in CI" in [BACKLOG.md](BACKLOG.md).
 
 
 ## The web app (`apps/web`)
@@ -259,7 +264,8 @@ a test, a review comment or a commit message can point at one. Where Postgres
 can express a rule it does, as a CHECK, a partial unique index or a composite
 foreign key — the table in [DATABASE.md](DATABASE.md) says which; the service
 layer still checks first so the user gets a message, not a constraint name.
-Turning them into tests is roadmap T1.4.
+Each rule has tests in `apps/api/test/invariants/`, named by its id; see
+[Tests](#tests).
 
 | Id | Rule | Enforced where |
 | --- | --- | --- |
@@ -269,7 +275,7 @@ Turning them into tests is roadmap T1.4.
 | **INV-4** | A building block cannot relate to itself. | `createRelationship()` |
 | **INV-5** | A block has at most one *active* `hosted_on` edge — containment, not a peer relationship. | `createRelationship()` |
 | **INV-6** | A business process's `capabilityId` must exist, and its `enterpriseId` is kept in sync with the owning capability's enterprise. | `business-processes.service.ts` |
-| **INV-7** | `bpmnXml` must parse as BPMN 2.0; `process_steps` are replaced from the diagram on every save. | `business-processes.service.ts` |
+| **INV-7** | `bpmnXml` must parse as BPMN 2.0; `process_steps` are replaced from the diagram on every save. A bundle whose process has a diagram must list exactly the steps that diagram gives (D-30); without a diagram its steps are taken as listed. | `business-processes.service.ts`; `validateDiagrams()` |
 | **INV-8** | Architecture-domain and organization-unit assignment are replace-all sets with no validity interval. | `replaceAssignments()` |
 | **INV-9** | Every row belongs to exactly one enterprise. Overlap between enterprises is expressed with links between their models, never by sharing rows. | Schema design; see [VISION.md](VISION.md) |
 | **INV-10** | Ids are globally unique. `id` is a plain primary key, *not* composite with `enterprise_id`, so two enterprises sharing a database cannot reuse an id. | Postgres primary key |
@@ -279,10 +285,10 @@ Turning them into tests is roadmap T1.4.
 | **INV-14** | A capability and an actor linked together belong to the same enterprise. | `actors.service.ts` |
 | **INV-15** | A capability has at most one *open* link to the same actor. | `actors.service.ts` |
 | **INV-16** | A request reads only enterprises its principal is a member of, and writes only what the member's role permits (D-20). A non-member sees nothing of an enterprise; instance admins are implicit owners of all of them (D-21). Creating an enterprise makes the creator its first member; the last member cannot be removed, and an account that is the last member of any enterprise cannot be deleted. | Every service, via `principal.enterpriseIds`; `AuthGuard`; `admin.service.ts` |
-| **INV-17** | There is always at least one active instance admin. The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
-| **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed; delete the enterprise instead. | `enterprises.service.ts` |
+| **INV-17** | There is always at least one active instance admin. Active means able to sign in: not deactivated, and with a password set (D-29). The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
+| **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed, by any of the ways a role is set, and their account cannot be deleted; delete the enterprise instead. | `enterprises.service.ts`; `admin.service.ts` |
 
-Two sharp edges in the current implementations, so you are not surprised by them:
+Sharp edges in the current implementations, so you are not surprised by them:
 
 - **INV-5 checks less than it claims.** It rejects a second `hosted_on` edge only
   when an existing one is *unbounded* (`validTo` null). It does not check full
@@ -293,6 +299,46 @@ Two sharp edges in the current implementations, so you are not surprised by them
   `common/pg-error.filter.ts` turns it into a 409. Example bundles avoid
   collisions by deriving ids as UUIDv5 from a readable key; see
   [DECISIONS.md](DECISIONS.md).
+- **INV-8 and "append-and-close" disagree about organization units.** The
+  list near the top of this file says `building_block_organization_units`
+  is closed and appended; INV-8 says it is a replace-all set, and that is
+  what the code does: every edit of a building block rewrites its unit
+  links without dates. See [BACKLOG.md](BACKLOG.md).
+
+### Tests
+
+`pnpm test` runs Vitest in `apps/api/test/`. A test gets the API's real
+services over the real Postgres of the test stack, inside a transaction that
+is rolled back when the test ends (`test/harness.ts`, D-28), so nothing a
+test writes outlives it and the seeded database stays as `pnpm db:test`
+made it. The suite refuses to run against a database whose name does not
+end in `_test`, with the same guard the test stack uses
+(`scripts/test-database.mjs`).
+
+`test/invariants/` holds the rules of the table above, one `describe` per
+id. Each is tested the way a caller meets it: the service refuses with its
+own message, the nearest valid input goes through, and where Postgres
+backs the rule a statement that goes around the service is refused by the
+named constraint. A test that would pass with its rule removed is a defect
+in the test; breaking the rule in the source and watching the test go red
+is how to check a new one.
+
+`test/data-exchange/` holds the other way into the model. `round-trip.test.ts`
+imports every `examples/*.json` into an emptied instance, exports, empties,
+imports the export and exports again, and expects the two exports to be
+identical apart from `exportedAt`; then the format version (a bundle without
+one, one from a newer version, malformed ones) and what import may touch
+(only the bundle's enterprises, memberships kept, ids of another enterprise
+refused). `bundle-rules.test.ts` breaks one invariant at a time in a valid
+bundle of two enterprises and expects the validator to name it, INV-7
+included: a diagram that is not BPMN, and steps that are not the diagram's. Both go
+through the controller's methods, so the version migration and the schema
+are in the path.
+
+What these tests do not reach: resolvers and the `AuthGuard` (nothing here
+sends an HTTP request, so `@AdminOnly()` and "sign in required" are
+untested), and anything that needs two connections — the check-then-write
+races behind INV-17 and INV-18, which no constraint backs.
 
 ## Example bundles
 
@@ -332,11 +378,21 @@ cp .env.example .env
 docker compose up postgres -d
 pnpm db:migrate
 pnpm dev                 # web :3000, api :4000
+pnpm dev:test            # a second instance on 127.0.0.1:3010, see below
 ```
 
+`pnpm dev:test` serves the same working tree against a database of its own
+(`DATABASE_URL`'s name with `_test` appended), seeded with one known admin
+account and every `examples/*.json`; `pnpm db:test` drops and reseeds it.
+Checks that write belong there, not in the development database. The script,
+`scripts/test-stack.mjs`, states the rest; why it is shaped this way is D-27
+in [DECISIONS.md](DECISIONS.md).
+
 Before calling anything done: `pnpm lint` (repo-wide), `pnpm -r typecheck`,
-`pnpm -r build`. There is no test suite yet — that is roadmap T1.3, and it is why
-those three currently prove that the code compiles, not that it works.
+`pnpm -r build`, `pnpm test`. The first three prove that the code compiles;
+the tests are what says a rule still holds, so a change to a rule comes with
+a change to its test. `pnpm test` needs the test database (`pnpm db:test`,
+once and after every migration) and neither a build nor a running instance.
 
 `.claude/skills/verify/SKILL.md` has the details for driving the running app
 headlessly.
