@@ -10,7 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException } from '@nestjs/common';
 import type { DataBundle } from '../../src/data-exchange/data-bundle.schema';
-import { validateBundle } from '../../src/data-exchange/data-bundle.validator';
+import { validateBundle, validateDiagrams } from '../../src/data-exchange/data-bundle.validator';
 import { exchange, overTheWire, parsedExample, tablesOf, withoutTimeOfExport } from '../bundles';
 import { describe, expect, it } from '../harness';
 import { smallModel } from '../model';
@@ -308,8 +308,11 @@ const cases: Case[] = [
 ];
 
 describe('the importer applies the invariants to a whole bundle', () => {
-  it('finds nothing wrong with the two examples as they are', () => {
-    expect(validateBundle(twoEnterprises().bundle)).toEqual([]);
+  it('finds nothing wrong with the two examples as they are', async () => {
+    const { bundle } = twoEnterprises();
+
+    expect(validateBundle(bundle)).toEqual([]);
+    expect(await validateDiagrams(bundle)).toEqual([]);
   });
 
   it.for(cases)('%s', ([, table, message, breakIt]) => {
@@ -352,13 +355,9 @@ describe('the importer applies the invariants to a whole bundle', () => {
     );
   });
 
-  // FINDING, 2026-11-12 — skipped because it fails; remove `.skip` with the
-  // fix. The validator has no check for INV-7: a bundle's `bpmnXml` is
-  // stored as it comes, BPMN or not, and its process steps are taken from
-  // the bundle and never compared with the diagram. ARCHITECTURE.md and
-  // DATABASE.md both say the importer checks this rule. Parsing BPMN is
-  // asynchronous and the validator is not, which may be why it is missing.
-  it.skip('refuses a process whose diagram is not BPMN 2.0 (INV-7)', async ({ world }) => {
+  // INV-7 is checked apart from the rest (validateDiagrams): parsing BPMN is
+  // asynchronous. The importer asks both and answers with one list.
+  it('refuses a process whose diagram is not BPMN 2.0 (INV-7)', async ({ world }) => {
     const { enterprise, process } = await smallModel(world, await world.enterprise());
     const endpoint = exchange(world);
     const broken = overTheWire(await endpoint.export(enterprise.owner)) as unknown as DataBundle;
@@ -370,7 +369,114 @@ describe('the importer applies the invariants to a whole bundle', () => {
     );
 
     expect(outcome).toBeInstanceOf(BadRequestException);
+    expect((outcome as BadRequestException).getResponse()).toMatchObject({
+      message: 'The bundle violates model rules',
+      issues: [
+        expect.objectContaining({
+          table: 'businessProcesses',
+          id: process.id,
+          message: expect.stringMatching(/bpmnXml is not BPMN 2\.0 \(INV-7\)/),
+        }),
+      ],
+    });
     const stored = await world.processes.findOne(enterprise.owner, process.id);
     expect(stored?.bpmnXml ?? null).toBeNull();
+  });
+});
+
+// The diagram is where a process's steps come from (INV-7), and a bundle
+// carries both. One that says two different things is refused, not
+// corrected: the importer writes what a bundle holds or nothing (D-30).
+describe('the importer holds process steps to the diagram (INV-7)', () => {
+  const notTheDiagram = /its processSteps are not the named tasks of its diagram \(INV-7\)/;
+
+  // Alderbrook has the one process with a diagram among the public examples.
+  function withDiagram() {
+    const bundle = structuredClone(parsedExample('alderbrook.json'));
+    const process = pick(bundle.businessProcesses, (p) => Boolean(p.bpmnXml));
+    const steps = bundle.processSteps
+      .filter((step) => step.processId === process.id)
+      .sort((x, y) => x.position - y.position);
+    if (steps.length < 2) throw new Error('the example diagram has fewer than two named tasks');
+    return { bundle, process, steps };
+  }
+
+  const breaks: [how: string, breakIt: (given: ReturnType<typeof withDiagram>) => void][] = [
+    [
+      'a step renamed',
+      ({ steps }) => {
+        pick(steps).name = 'Something the diagram does not say';
+      },
+    ],
+    [
+      'a step missing',
+      ({ bundle, steps }) => {
+        const last = steps.at(-1);
+        bundle.processSteps = bundle.processSteps.filter((step) => step !== last);
+      },
+    ],
+    [
+      'a step the diagram does not have',
+      ({ bundle, steps }) => {
+        bundle.processSteps.push({
+          ...pick(steps),
+          id: randomUUID(),
+          name: 'One more',
+          position: steps.length,
+        });
+      },
+    ],
+    [
+      'two steps in the other order',
+      ({ steps }) => {
+        const [first, second] = steps;
+        if (!first || !second) throw new Error('unreachable');
+        [first.position, second.position] = [second.position, first.position];
+      },
+    ],
+  ];
+
+  it.for(breaks)('refuses %s', async ([, breakIt]) => {
+    const given = withDiagram();
+
+    breakIt(given);
+
+    expect(await validateDiagrams(given.bundle)).toEqual([
+      expect.objectContaining({
+        table: 'businessProcesses',
+        id: given.process.id,
+        message: expect.stringMatching(notTheDiagram),
+      }),
+    ]);
+  });
+
+  it('leaves the steps of a process without a diagram alone', async () => {
+    // Kestrel's processes have steps and no diagram: there is nothing to
+    // hold them to, so any list of steps is taken as given.
+    const bundle = structuredClone(parsedExample('kestrel.json'));
+    const step = pick(bundle.processSteps);
+    const process = pick(bundle.businessProcesses, (p) => p.id === step.processId);
+    expect(process.bpmnXml ?? null).toBeNull();
+    step.name = 'Anything at all';
+
+    expect(await validateDiagrams(bundle)).toEqual([]);
+  });
+
+  it('takes a diagram saved in the app back in, steps and all', async ({ world }) => {
+    const { enterprise, process } = await smallModel(world, await world.enterprise());
+    const diagram = pick(parsedExample('alderbrook.json').businessProcesses, (p) =>
+      Boolean(p.bpmnXml),
+    ).bpmnXml;
+    if (!diagram) throw new Error('unreachable');
+    const saved = await world.processes.updateDiagram(enterprise.owner, process.id, diagram);
+    expect(saved.steps.length).toBeGreaterThan(1);
+    const endpoint = exchange(world);
+    const exported = await endpoint.export(enterprise.owner);
+
+    await endpoint.import(enterprise.owner, overTheWire(exported) as unknown as DataBundle);
+
+    expect(withoutTimeOfExport(await endpoint.export(enterprise.owner))).toEqual(
+      withoutTimeOfExport(exported),
+    );
   });
 });

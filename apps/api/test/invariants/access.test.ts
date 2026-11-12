@@ -199,16 +199,13 @@ describe('INV-16: a request reads only the enterprises its principal is a member
 });
 
 describe('INV-16: an id from another enterprise reads as one that does not exist', () => {
-  // FINDING, 2026-11-12 — skipped because it fails; remove `.skip` with the
-  // fix. ActorsService.validate() looks the organization unit up without the
-  // caller's enterprises in the where clause, and answers "not found" for an
-  // id that does not exist but "must belong to the same enterprise" for one
-  // that exists somewhere the caller is not a member. Nothing of the unit is
-  // returned; what leaks is that the id exists. Every other lookup by id
-  // that these tests reach answers the same for both.
-  it.skip('answers the same for a foreign organization unit as for a missing one', async ({
-    world,
-  }) => {
+  // The unit an actor points at is the one lookup by id that once told the
+  // two apart: "not found" for an id that does not exist, "must belong to
+  // the same enterprise" for one that exists where the caller is not a
+  // member. Nothing of the unit was returned; what leaked was that the id
+  // exists. A caller who is a member of both still gets the second answer
+  // (INV-13, information-and-actors.test.ts).
+  it('answers the same for a foreign organization unit as for a missing one', async ({ world }) => {
     const mine = await world.enterprise();
     const theirs = await world.enterprise();
     const theirUnit = await world.organizationUnit(theirs.id);

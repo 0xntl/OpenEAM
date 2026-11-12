@@ -277,7 +277,9 @@ export class AdminService {
 
   // Deletion is for accounts that should not exist; deactivation is the
   // normal off-boarding. Refused while the account is the last member of any
-  // enterprise, which would otherwise be stranded (INV-16).
+  // enterprise, which would otherwise be stranded (INV-16), or its last
+  // owner: the membership goes with the account, and the enterprise would be
+  // left with members but nobody who owns it (INV-18).
   async deleteUser(principal: Principal, userId: string): Promise<boolean> {
     if (userId === principal.userId)
       throw new BadRequestException('You cannot delete your own account');
@@ -287,13 +289,28 @@ export class AdminService {
     const memberships = await this.db.query.enterpriseMembers.findMany({
       where: (t, { eq: equals }) => equals(t.userId, userId),
       with: {
-        enterprise: { columns: { name: true }, with: { members: { columns: { userId: true } } } },
+        enterprise: {
+          columns: { name: true },
+          with: { members: { columns: { userId: true, role: true } } },
+        },
       },
     });
+    const names = (rows: typeof memberships) =>
+      rows.map((m) => `"${m.enterprise.name}"`).join(', ');
     const stranded = memberships.filter((m) => m.enterprise.members.length === 1);
     if (stranded.length > 0) {
       throw new BadRequestException(
-        `This account is the only member of ${stranded.map((m) => `"${m.enterprise.name}"`).join(', ')} — add another member or delete the enterprise first`,
+        `This account is the only member of ${names(stranded)} — add another member or delete the enterprise first`,
+      );
+    }
+    const ownerless = memberships.filter(
+      (m) =>
+        m.role === 'owner' &&
+        !m.enterprise.members.some((other) => other.role === 'owner' && other.userId !== userId),
+    );
+    if (ownerless.length > 0) {
+      throw new BadRequestException(
+        `This account is the only owner of ${names(ownerless)} — make someone else an owner or delete the enterprise first`,
       );
     }
 
@@ -318,13 +335,24 @@ export class AdminService {
     return user;
   }
 
+  // INV-17. Active means able to sign in: not deactivated, and with a
+  // password. An admin created by another admin has none until the setup
+  // link is used, and if that link ran out after the last usable admin had
+  // stepped down, nobody could issue another (D-29).
   private async assertNotLastAdmin(userId: string): Promise<void> {
-    const other = await this.db.query.users.findFirst({
+    const others = await this.db.query.users.findMany({
       where: (t, { and, eq: equals, isNull, ne: notEq }) =>
         and(equals(t.instanceRole, 'admin'), notEq(t.id, userId), isNull(t.disabledAt)),
       columns: { id: true },
+      extras: (t, { sql }) => ({
+        hasPassword: sql<boolean>`${t.passwordHash} is not null`.as('has_password'),
+      }),
     });
-    if (!other)
-      throw new BadRequestException('This is the last active admin — appoint another one first');
+    if (others.some((other) => other.hasPassword)) return;
+    throw new BadRequestException(
+      others.length > 0
+        ? 'This is the last active admin — the other admin has not set a password yet; wait until they have used their setup link'
+        : 'This is the last active admin — appoint another one first',
+    );
   }
 }
