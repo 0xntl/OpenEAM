@@ -305,6 +305,11 @@ Sharp edges in the current implementations, so you are not surprised by them:
   setup link has not been used is not deactivated, so it counts as the
   "other active admin" that lets the last usable one step down. Skipped
   test, and in [BACKLOG.md](BACKLOG.md).
+- **The importer does not apply INV-7.** A bundle's `bpmnXml` is stored as
+  it comes, BPMN or not, and its process steps are not compared with the
+  diagram; `data-bundle.validator.ts` has no check for it, whatever the
+  paragraph under "Where the rules live" says. Skipped test, and in
+  [BACKLOG.md](BACKLOG.md).
 - **INV-8 and "append-and-close" disagree about organization units.** The
   list near the top of this file says `building_block_organization_units`
   is closed and appended; INV-8 says it is a replace-all set, and that is
@@ -329,11 +334,21 @@ named constraint. A test that would pass with its rule removed is a defect
 in the test; breaking the rule in the source and watching the test go red
 is how to check a new one.
 
+`test/data-exchange/` holds the other way into the model. `round-trip.test.ts`
+imports every `examples/*.json` into an emptied instance, exports, empties,
+imports the export and exports again, and expects the two exports to be
+identical apart from `exportedAt`; then the format version (a bundle without
+one, one from a newer version, malformed ones) and what import may touch
+(only the bundle's enterprises, memberships kept, ids of another enterprise
+refused). `bundle-rules.test.ts` breaks one invariant at a time in a valid
+bundle of two enterprises and expects the validator to name it. Both go
+through the controller's methods, so the version migration and the schema
+are in the path.
+
 What these tests do not reach: resolvers and the `AuthGuard` (nothing here
 sends an HTTP request, so `@AdminOnly()` and "sign in required" are
-untested), the importer's own check of the same rules in
-`data-bundle.validator.ts`, and anything that needs two connections — the
-check-then-write races behind INV-17 and INV-18, which no constraint backs.
+untested), and anything that needs two connections — the check-then-write
+races behind INV-17 and INV-18, which no constraint backs.
 
 ## Example bundles
 
