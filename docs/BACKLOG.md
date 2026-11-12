@@ -49,6 +49,25 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   all (INV-16). An instance admin can still repair it. Fix both checks and
   unskip the tests.
 
+- **INV-17 counts an admin who cannot sign in** — found while writing the
+  invariant tests; skipped test in the same file. `assertNotLastAdmin()`
+  counts every admin that is not deactivated. An admin created by another
+  admin has no password until the setup link is used, so with one such
+  account present the last admin who can actually sign in may step down, or
+  be deactivated or deleted. If the link then runs out after its seven days,
+  the instance has no usable admin and only the database can repair it.
+  Decide what "active" means (has a password is the obvious reading), then
+  fix the check and unskip the test.
+
+- **An organization unit id from another enterprise is told apart from one
+  that does not exist** — skipped test in
+  `apps/api/test/invariants/access.test.ts`. `ActorsService.validate()`
+  looks the unit up without the caller's enterprises and answers "not found"
+  or "must belong to the same enterprise" accordingly, so any member of any
+  enterprise can test whether a unit id exists. Ids are random UUIDs and
+  nothing else is revealed, so this is small; it is the one lookup by id
+  found that does not read as "not found" (INV-16). Scope the lookup.
+
 
 ## Foundation
 
@@ -123,6 +142,33 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   than every push.
 
 ## Model and data
+
+- **Editing a building block erases its dated organization-unit history** —
+  `replaceAssignments()` deletes every `building_block_organization_units`
+  row of the block and writes the submitted units back without dates
+  (INV-8). A model imported from a bundle can carry dated assignments
+  ("this moved from IT to the Data Office in 2025"); renaming such a block
+  in the UI is enough to lose them, silently. The INV-8 test pins the
+  behaviour as it is. ARCHITECTURE.md contradicts itself on which this
+  table should be: the append-and-close list includes it, INV-8 excludes
+  it. Decide, then either keep dated rows on edit or say plainly that the
+  form flattens them.
+
+- **A temporal link cannot be closed through the API** — a second open
+  `hosted_on` edge, capability–information link or capability–actor link is
+  refused with "close it (set validTo) before adding another" (INV-5, 12,
+  15), but relationships and links have only create and delete mutations.
+  The one way to follow the advice is to delete the link, which removes the
+  history it was for, or to import a bundle. An update mutation that sets
+  `validTo`, and the same from the detail pages.
+
+- **Reading a capability takes about 60 ms** — measured in the test suite
+  against the test database, on an enterprise with almost nothing in it:
+  `BusinessCapabilitiesService.findOne` (and `create` and `update`, which
+  read back through it) took 60–80 ms per call where a building block took
+  7 ms. Not investigated. The query nests every link of every linked
+  building block, so planning time is the first thing to look at;
+  `findAll` runs the same shape for a whole enterprise.
 
 - **No mutation to link a building block to a business capability** —
   `buildingBlockCapabilities` (which ABBs realize which capability) can only be set
