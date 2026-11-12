@@ -30,7 +30,7 @@ side runs the built `apps/api/dist`, which a running `pnpm dev` keeps current.
 
 ```bash
 pnpm db:test      # once, and again after a migration: the database the tests use
-pnpm test         # the whole suite, about ten seconds
+pnpm test         # the whole suite, about twenty seconds
 pnpm test:watch   # re-run what a change touches
 ```
 
