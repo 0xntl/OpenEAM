@@ -5,7 +5,7 @@
 // admin screen people already know.
 import { gql } from '@apollo/client';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import {
   Check,
   Copy,
@@ -1033,11 +1033,12 @@ function AccountRow({
 }
 
 function AdminRoute() {
-  const { user: me, isAdmin } = useAuth();
-  const { enterprises } = useEnterprise();
+  const { user: me, isAdmin, reload: reloadSession } = useAuth();
+  const { enterprises, refetch: refetchEnterprises } = useEnterprise();
   const { data, refetch } = useQuery<AdminData>(ADMIN_QUERY, { skip: !isAdmin });
   const [updateSettings] = useMutation(UPDATE_SETTINGS);
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const [setRole] = useMutation(SET_ROLE);
   const [setDisabled] = useMutation(SET_DISABLED);
   const [deleteUser] = useMutation(DELETE_USER);
@@ -1073,6 +1074,34 @@ function AdminRoute() {
     }
   };
 
+  // Removing one's own admin role ends the visit: this page is for admins,
+  // and so is the session's view of the instance (every enterprise, as its
+  // owner). So it is asked for first, and afterwards the user is taken to the
+  // overview with the session and the enterprises read again. Reloading the
+  // accounts here instead, as every other action does, would only be refused.
+  const stepDown = async (u: AdminUser) => {
+    const confirmed = await confirm({
+      title: 'Remove your own instance admin role?',
+      description:
+        'You will leave this page and keep only the enterprises you are a member of. You cannot take the role back yourself; another instance admin has to give it to you.',
+      confirmLabel: 'Remove my admin role',
+      destructive: true,
+    });
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await setRole({ variables: { userId: u.id, role: 'USER' } });
+    } catch (err) {
+      setError(errorMessage(err));
+      return;
+    }
+    await navigate({ to: '/' });
+    await reloadSession();
+    refetchEnterprises();
+    toast.success('You are no longer an instance admin.');
+  };
+
   const onAction = async (
     u: AdminUser,
     action: 'promote' | 'demote' | 'deactivate' | 'reactivate' | 'delete',
@@ -1081,6 +1110,7 @@ function AdminRoute() {
       case 'promote':
         return run(() => setRole({ variables: { userId: u.id, role: 'ADMIN' } }));
       case 'demote':
+        if (u.id === me?.id) return stepDown(u);
         return run(() => setRole({ variables: { userId: u.id, role: 'USER' } }));
       case 'deactivate':
         return run(() => setDisabled({ variables: { userId: u.id, disabled: true } }));
