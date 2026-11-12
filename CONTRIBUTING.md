@@ -15,6 +15,17 @@ pnpm dev
 Web on http://localhost:3000, API on http://localhost:4000. The first account
 you create in the web app can always be created; see README.
 
+For anything that writes — trying a change, a script, a check you would not
+want in your own model — there is a second instance with its own database:
+
+```bash
+pnpm dev:test   # http://127.0.0.1:3010, admin@openeam.test / openeam-test
+pnpm db:test    # drop that database and seed it again
+```
+
+It holds the public example enterprises and is created on first use. The API
+side runs the built `apps/api/dist`, which a running `pnpm dev` keeps current.
+
 ## Before opening a PR
 
 Run the same checks CI runs:

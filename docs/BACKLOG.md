@@ -40,7 +40,8 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 - **Test harness** (T1.3) — there is no test infrastructure at all. Vitest plus a
   Postgres service container in CI. Everything below that needs a test depends on
   this existing. Tool choice stays Vitest; the `test` / `test:watch` scripts and
-  the CI step go in with it.
+  the CI step go in with it. The database half exists: `pnpm db:test` creates
+  and seeds one (D-27), and CI can run it against a service container as is.
 
 - **Invariant tests** (T1.4) — turn INV-1 … INV-17 in
   [ARCHITECTURE.md](ARCHITECTURE.md) into tests. They are already written down as
@@ -54,6 +55,28 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   in `data-bundle.format.ts` is exercised, a newer version being refused, and
   an export by a member of one enterprise while another exists (D-24). The
   2026-10-13 hand-run of exactly these checks is the script to start from.
+
+- **Browser tests** — Playwright against the test stack (D-27), after T1.3.
+  Three projects (phone, tablet, desktop) and to begin with only what a unit
+  test cannot see: every route renders without an error, no page is wider
+  than its viewport, the navigation is reachable at every size, and one
+  create–edit–delete flow per entity type. The checks that found the phone
+  layout defects were run by hand; this is them, kept. Accessibility checks
+  (axe) ride on the same runs once they exist. Not screenshot comparison yet:
+  the interface still moves too much for the diffs to mean anything.
+
+- **Generated GraphQL types on the web** — every route hand-writes the
+  interfaces for its query results, so renaming a field in the API breaks
+  nothing at compile time and the page fails at runtime instead. graphql-codegen
+  from the committed `apps/api/schema.gql`; typecheck then catches it. This
+  sat in IDEAS "for when the first real operations land", and they have. The
+  shared `@openeam/graphql` package from that note waits for a second consumer.
+
+- **A second seeded account** — the test stack has one instance admin. The
+  read-only paths (a viewer who must not see Edit, a member of one enterprise
+  who must not see another) need a viewer and an outsider seeded beside it,
+  created the way the Administration page creates them. Add with the first
+  test that needs one.
 
 - **Drift checks** (T1.6) — fail CI when the committed `schema.gql` differs from
   the generated one, or when `drizzle-kit generate` would produce a migration.
