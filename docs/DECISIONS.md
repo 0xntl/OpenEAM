@@ -703,3 +703,47 @@ this decision only makes a tag mean something.
 
 **Revisit when:** a second production host exists, when a branch wants its
 own preview environment, or when someone self-hosts on arm64.
+
+---
+
+## D-27 · A test stack beside the development instance, seeded through the API
+
+**Decided:** `pnpm dev:test` runs a second instance against its own database
+(`DATABASE_URL`'s name plus `_test`), and `pnpm db:test` drops and reseeds
+it: one admin account with a published password and every `examples/*.json`.
+One script, `scripts/test-stack.mjs`, does both. Anything that writes for
+the sake of checking something — by hand, by script, by the browser tests
+once they exist — runs there. The development database is nobody's fixture.
+
+**Why a real stack and not a mocked API:** the rules live in the API
+(the invariants, membership scoping, the importer's validation). A mocked
+GraphQL layer is a second implementation of them that drifts, and a check
+that passes against it proves the mock. The whole stack is one Postgres
+container away, so there is nothing to work around.
+
+**Why seeded through the API:** the script signs the first account up and
+posts the bundles to the import endpoint, exactly as a person would. Rows
+written by SQL would need the password hashing and the import logic a
+second time, and would keep loading after the API had started refusing them.
+It also means the API gains nothing for this: no seed entry point ships in
+the production image.
+
+**Why 127.0.0.1:** cookies are scoped to the host and ignore the port. On
+`localhost:3010` signing in would overwrite the session of the development
+instance on `localhost:3000` in the same browser. A different host name
+keeps the two apart.
+
+**Why it runs the built API:** the test API starts from `apps/api/dist`.
+Two `nest start --watch` processes would compile into the same folder, and
+`nest build` clears it first, which would break a running `pnpm dev`. So
+the script builds only when there is no build yet and otherwise takes what
+`pnpm dev` keeps current. The price is that with no `pnpm dev` running an
+API change needs a build before it shows up here.
+
+**The guard:** the script refuses a database whose name does not end in
+`_test`. That is the whole protection against dropping the wrong one, so it
+stays even when `TEST_DATABASE_URL` is set by hand.
+
+**Revisit when:** the test harness (BACKLOG T1.3) lands and wants a database
+per test run rather than one shared one, or when the API gets its own build
+output for tests, which would remove the stale-build caveat.

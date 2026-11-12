@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "pnpm --filter @openeam/db build && pnpm --parallel -r run dev",
+    "dev:test": "node scripts/test-stack.mjs start",
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "biome check .",
@@ -17,7 +18,8 @@
     "check:examples": "node scripts/check-example-icons.mjs",
     "db:generate": "pnpm --filter @openeam/db generate",
     "db:migrate": "pnpm --filter @openeam/db migrate",
-    "db:studio": "pnpm --filter @openeam/db studio"
+    "db:studio": "pnpm --filter @openeam/db studio",
+    "db:test": "node scripts/test-stack.mjs reset"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",

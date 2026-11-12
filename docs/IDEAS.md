@@ -40,7 +40,6 @@ Nothing here is decided. Three neighbours hold the things that are:
 - **Published JSON Schema for the data bundle** — generate it from the zod schema (`z.toJSONSchema`) and serve it publicly, versioned in the address (`/api/data-exchange/schema/v1.json`, `$id` per format version), so editors and scripts can check a bundle's shape before uploading. Shape only: the model rules in `data-bundle.validator.ts` and the migration of older bundles are not expressible in it, and the icon `refine` drops out, so a bundle that passes the schema can still be rejected. Nobody writes bundles by hand or by script today, and the format is not stable (D-24); a published schema is a promise to keep it current. Do it with the first release, when a stable project URL exists to point `$schema` at, or when the first outside script produces bundles.
 - **REST facade** — only when a real third-party integrator needs it (CMDB sync, ServiceNow, iPaaS, scripts). REST + OpenAPI for core resources, sharing the service layer with GraphQL.
 - **TanStack Query** — when the frontend calls a REST endpoint other than /health.
-- **GraphQL Codegen + `packages/graphql`** — the API already emits its SDL to a committed `apps/api/schema.gql` (reviewable in diffs, codegen-ready). When the first real operations land: add graphql-codegen on the web, with the generated types in a shared `@openeam/graphql` package (so a future REST client / second consumer can reuse them). Note: in production the API builds the SDL in memory (`autoSchemaFile: true`) because the container's app directory is not writable; codegen would read the committed `schema.gql` from the dev run.
 - **Persisted queries** — during production hardening.
 - **BullMQ + Redis** — first async job (e.g. CSV import).
 - **MinIO** — first file upload.
@@ -54,8 +53,6 @@ Nothing here is decided. Three neighbours hold the things that are:
 ## Operations and tooling
 
 - **OpenTelemetry** — when there's a tracing backend to send to.
-- **Playwright** — when UI flows need E2E coverage. (Unit and integration tests are
-  not an idea — see [BACKLOG.md](BACKLOG.md).)
 - **Turborepo** — if CI builds get slow (~2 min+).
 - **i18n** — when a second language is actually needed.
 
