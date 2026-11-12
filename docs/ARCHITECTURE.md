@@ -157,7 +157,10 @@ runs `data-bundle.validator.ts` over the whole bundle before the transaction:
 every row must belong to one of the bundle's own enterprises, every reference
 must land inside the bundle and in the same enterprise, and the temporal and
 structural invariants (INV-1 … INV-15) are checked with the same functions the
-services use, from `common/invariants.ts`. All violations come back in one
+services use, from `common/invariants.ts`. INV-7 is the one that needs more
+than the rows: each diagram is parsed with the service's own
+`bpmn-steps.ts`, and a process whose steps are not the ones its diagram
+gives refuses the bundle (D-30). All violations come back in one
 response, each with table and id. Inside the transaction, after the bundle's
 enterprises are deleted and before anything is inserted, ids are checked
 against what remains in the database (INV-10): a collision with another
@@ -272,7 +275,7 @@ Each rule has tests in `apps/api/test/invariants/`, named by its id; see
 | **INV-4** | A building block cannot relate to itself. | `createRelationship()` |
 | **INV-5** | A block has at most one *active* `hosted_on` edge — containment, not a peer relationship. | `createRelationship()` |
 | **INV-6** | A business process's `capabilityId` must exist, and its `enterpriseId` is kept in sync with the owning capability's enterprise. | `business-processes.service.ts` |
-| **INV-7** | `bpmnXml` must parse as BPMN 2.0; `process_steps` are replaced from the diagram on every save. | `business-processes.service.ts` |
+| **INV-7** | `bpmnXml` must parse as BPMN 2.0; `process_steps` are replaced from the diagram on every save. A bundle whose process has a diagram must list exactly the steps that diagram gives (D-30); without a diagram its steps are taken as listed. | `business-processes.service.ts`; `validateDiagrams()` |
 | **INV-8** | Architecture-domain and organization-unit assignment are replace-all sets with no validity interval. | `replaceAssignments()` |
 | **INV-9** | Every row belongs to exactly one enterprise. Overlap between enterprises is expressed with links between their models, never by sharing rows. | Schema design; see [VISION.md](VISION.md) |
 | **INV-10** | Ids are globally unique. `id` is a plain primary key, *not* composite with `enterprise_id`, so two enterprises sharing a database cannot reuse an id. | Postgres primary key |
@@ -282,8 +285,8 @@ Each rule has tests in `apps/api/test/invariants/`, named by its id; see
 | **INV-14** | A capability and an actor linked together belong to the same enterprise. | `actors.service.ts` |
 | **INV-15** | A capability has at most one *open* link to the same actor. | `actors.service.ts` |
 | **INV-16** | A request reads only enterprises its principal is a member of, and writes only what the member's role permits (D-20). A non-member sees nothing of an enterprise; instance admins are implicit owners of all of them (D-21). Creating an enterprise makes the creator its first member; the last member cannot be removed, and an account that is the last member of any enterprise cannot be deleted. | Every service, via `principal.enterpriseIds`; `AuthGuard`; `admin.service.ts` |
-| **INV-17** | There is always at least one active instance admin. The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
-| **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed; delete the enterprise instead. | `enterprises.service.ts` |
+| **INV-17** | There is always at least one active instance admin. Active means able to sign in: not deactivated, and with a password set (D-29). The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
+| **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed, by any of the ways a role is set, and their account cannot be deleted; delete the enterprise instead. | `enterprises.service.ts`; `admin.service.ts` |
 
 Sharp edges in the current implementations, so you are not surprised by them:
 
@@ -296,20 +299,6 @@ Sharp edges in the current implementations, so you are not surprised by them:
   `common/pg-error.filter.ts` turns it into a 409. Example bundles avoid
   collisions by deriving ids as UUIDv5 from a readable key; see
   [DECISIONS.md](DECISIONS.md).
-- **INV-18 does not hold on two paths.** Adding the last owner again with a
-  lesser role demotes them, and deleting the last owner's account is allowed
-  while the enterprise has other members. Both leave an enterprise without
-  an explicit owner. Two skipped tests state the rule; the defect is in
-  [BACKLOG.md](BACKLOG.md).
-- **INV-17 counts an admin who cannot sign in.** An admin account whose
-  setup link has not been used is not deactivated, so it counts as the
-  "other active admin" that lets the last usable one step down. Skipped
-  test, and in [BACKLOG.md](BACKLOG.md).
-- **The importer does not apply INV-7.** A bundle's `bpmnXml` is stored as
-  it comes, BPMN or not, and its process steps are not compared with the
-  diagram; `data-bundle.validator.ts` has no check for it, whatever the
-  paragraph under "Where the rules live" says. Skipped test, and in
-  [BACKLOG.md](BACKLOG.md).
 - **INV-8 and "append-and-close" disagree about organization units.** The
   list near the top of this file says `building_block_organization_units`
   is closed and appended; INV-8 says it is a replace-all set, and that is
@@ -341,7 +330,8 @@ identical apart from `exportedAt`; then the format version (a bundle without
 one, one from a newer version, malformed ones) and what import may touch
 (only the bundle's enterprises, memberships kept, ids of another enterprise
 refused). `bundle-rules.test.ts` breaks one invariant at a time in a valid
-bundle of two enterprises and expects the validator to name it. Both go
+bundle of two enterprises and expects the validator to name it, INV-7
+included: a diagram that is not BPMN, and steps that are not the diagram's. Both go
 through the controller's methods, so the version migration and the schema
 are in the path.
 
