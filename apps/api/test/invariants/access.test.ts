@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   ForbiddenException,
@@ -194,6 +195,37 @@ describe('INV-16: a request reads only the enterprises its principal is a member
     for (const row of [m.enterprise, m.abb, m.sbb, m.capability, m.process, m.actor]) {
       expect(exported).not.toContain(row.id);
     }
+  });
+});
+
+describe('INV-16: an id from another enterprise reads as one that does not exist', () => {
+  // FINDING, 2026-11-12 — skipped because it fails; remove `.skip` with the
+  // fix. ActorsService.validate() looks the organization unit up without the
+  // caller's enterprises in the where clause, and answers "not found" for an
+  // id that does not exist but "must belong to the same enterprise" for one
+  // that exists somewhere the caller is not a member. Nothing of the unit is
+  // returned; what leaks is that the id exists. Every other lookup by id
+  // that these tests reach answers the same for both.
+  it.skip('answers the same for a foreign organization unit as for a missing one', async ({
+    world,
+  }) => {
+    const mine = await world.enterprise();
+    const theirs = await world.enterprise();
+    const theirUnit = await world.organizationUnit(theirs.id);
+    const message = (organizationUnitId: string) =>
+      world.actors
+        .create(mine.owner, {
+          enterpriseId: mine.id,
+          kind: ActorKind.TEAM,
+          name: 'Sales',
+          organizationUnitId,
+        })
+        .then(
+          () => 'it went through',
+          (error: Error) => error.message.replace(organizationUnitId, '<id>'),
+        );
+
+    expect(await message(theirUnit)).toBe(await message(randomUUID()));
   });
 });
 

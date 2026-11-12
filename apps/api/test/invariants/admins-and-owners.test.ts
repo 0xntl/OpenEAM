@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { InstanceRole } from '../../src/auth/auth.model';
 import { describe, expect, it } from '../harness';
 import { expectRefusal } from '../model';
 
@@ -26,6 +27,24 @@ describe('INV-17: there is always at least one active instance admin', () => {
     const first = await world.account('admin');
     const second = await world.account('admin');
     await world.admin.setDisabled(first, second.userId, true);
+
+    await expectRefusal(world.admin.setRole(first.userId, 'user'), BadRequestException, lastAdmin);
+  });
+
+  // FINDING, 2026-11-12 — skipped because it fails; remove `.skip` with the
+  // fix. The check counts every admin that is not deactivated, including one
+  // created by an admin who has not used their setup link yet and so cannot
+  // sign in. The last admin who can may step down (or be deactivated or
+  // deleted by that account's later session), and if the link then expires
+  // after its seven days nobody is left to issue another. Whether such an
+  // account is "active" is the decision to make; this test says it is not.
+  it.skip('does not count an admin who has never set a password', async ({ world }) => {
+    const first = await world.account('admin');
+    await world.admin.createUser(first, {
+      email: 'pending@example.test',
+      displayName: 'Pending',
+      instanceRole: InstanceRole.ADMIN,
+    });
 
     await expectRefusal(world.admin.setRole(first.userId, 'user'), BadRequestException, lastAdmin);
   });
