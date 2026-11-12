@@ -153,9 +153,14 @@ export function AppShell() {
               <CollapsedBrandTrigger />
             </div>
             <EnterpriseSwitcher />
-            <CommandPaletteTrigger
-              onOpen={() => window.dispatchEvent(new CustomEvent('openeam:palette'))}
-            />
+            {/* Not in the phone drawer: there, search sits next to the menu
+                button in the floating control and a second copy only takes
+                a row. */}
+            <div className="in-data-[mobile=true]:hidden">
+              <CommandPaletteTrigger
+                onOpen={() => window.dispatchEvent(new CustomEvent('openeam:palette'))}
+              />
+            </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
