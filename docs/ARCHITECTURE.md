@@ -285,7 +285,7 @@ Each rule has tests in `apps/api/test/invariants/`, named by its id; see
 | **INV-17** | There is always at least one active instance admin. The last one cannot be demoted, deactivated or deleted; nobody can deactivate or delete themselves. | `admin.service.ts` |
 | **INV-18** | Every enterprise has at least one explicit owner (an admin's implicit ownership does not count). The last owner cannot be demoted or removed; delete the enterprise instead. | `enterprises.service.ts` |
 
-Three sharp edges in the current implementations, so you are not surprised by them:
+Sharp edges in the current implementations, so you are not surprised by them:
 
 - **INV-5 checks less than it claims.** It rejects a second `hosted_on` edge only
   when an existing one is *unbounded* (`validTo` null). It does not check full
@@ -301,6 +301,15 @@ Three sharp edges in the current implementations, so you are not surprised by th
   while the enterprise has other members. Both leave an enterprise without
   an explicit owner. Two skipped tests state the rule; the defect is in
   [BACKLOG.md](BACKLOG.md).
+- **INV-17 counts an admin who cannot sign in.** An admin account whose
+  setup link has not been used is not deactivated, so it counts as the
+  "other active admin" that lets the last usable one step down. Skipped
+  test, and in [BACKLOG.md](BACKLOG.md).
+- **INV-8 and "append-and-close" disagree about organization units.** The
+  list near the top of this file says `building_block_organization_units`
+  is closed and appended; INV-8 says it is a replace-all set, and that is
+  what the code does: every edit of a building block rewrites its unit
+  links without dates. See [BACKLOG.md](BACKLOG.md).
 
 ### Tests
 
