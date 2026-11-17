@@ -335,6 +335,15 @@ included: a diagram that is not BPMN, and steps that are not the diagram's. Both
 through the controller's methods, so the version migration and the schema
 are in the path.
 
+`test/conformance/field-inventory.ts` lists every column of every model table
+and, for the web app's list, detail, filter and sort, whether the column
+reaches it, and if not, why: a `gap` (known, waiting) or an `exempt` (decided
+it does not belong there). `field-inventory.test.ts` fails when a column has
+no entry, when an entry names a column that is gone, and when a model column
+is missing from the bundle schema. So a new column cannot land without
+someone deciding where it is meant to be used. What the entries claim about
+the pages is kept true by hand until the browser tests can check it.
+
 What these tests do not reach: resolvers and the `AuthGuard` (nothing here
 sends an HTTP request, so `@AdminOnly()` and "sign in required" are
 untested), and anything that needs two connections — the check-then-write
