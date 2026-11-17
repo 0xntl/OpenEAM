@@ -175,6 +175,12 @@ export class EnterprisesService {
     });
     if (!user) throw new NotFoundException(`No account with the email ${email.trim()}`);
 
+    // Adding someone who is already a member sets their role, so it is held
+    // to the same rule as setMemberRole (INV-18).
+    const current = await this.members(principal, enterpriseId);
+    const member = current.find((m) => m.userId === user.id);
+    if (member?.role === 'owner' && role !== 'owner') this.assertNotLastOwner(current, user.id);
+
     await this.db
       .insert(schema.enterpriseMembers)
       .values({ enterpriseId, userId: user.id, role })

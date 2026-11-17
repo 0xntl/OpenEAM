@@ -144,7 +144,8 @@ enterprise_id)` (INV-6: a process lives in its capability's enterprise).
 
 **`process_steps`** — `process_id FK business_processes`, `name`, `position
 integer`. UNIQUE `(process_id, position)`. Re-derived from `bpmn_xml` on every
-diagram save (INV-7).
+diagram save (INV-7). A process without a diagram can have steps only from a
+bundle; with a diagram, import refuses steps that are not the diagram's (D-30).
 
 **`value_streams`** — `enterprise_id FK`, `name`, `description NULL`.
 
@@ -235,8 +236,8 @@ NULL` (INV-15).
 | INV-13 unit only on teams, same enterprise | `actors_organization_unit_only_for_team_check`, `actors_organization_unit_same_enterprise_fk` |
 | INV-15 one open capability–actor link | `capability_actors_one_open_per_pair_idx` |
 | INV-16 membership | `enterprise_members` primary key and cascades |
-| INV-17 at least one admin | not expressible; `admin.service.ts` |
-| INV-18 at least one owner per enterprise | not expressible; `enterprises.service.ts` |
+| INV-17 at least one active admin | not expressible; `admin.service.ts` |
+| INV-18 at least one owner per enterprise | not expressible; `enterprises.service.ts`, `admin.service.ts` |
 | INV-2, INV-7, INV-9/11/14 for id-only links, ABB/SBB sides of a realization | services and `data-bundle.validator.ts` |
 
 When a constraint does fire, `common/pg-error.filter.ts` turns it into a 400 or

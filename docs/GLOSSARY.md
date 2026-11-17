@@ -42,7 +42,8 @@ stable, a process is the thing you actually change.
 
 **Process step** — one step in a process. Synced *from* the BPMN diagram on every
 save: the diagram is the source of truth, steps are derived (INV-7). Editing steps
-directly is not a thing.
+directly is not a thing. A process that has no diagram yet can still have
+steps, listed in a bundle; the first diagram saved for it replaces them.
 
 **Value stream** — the end-to-end sequence of stages delivering value for a
 stakeholder need, from trigger to outcome. Crosses capabilities and organizational
@@ -204,6 +205,10 @@ permissions, never roles.
 **Session** — one signed-in browser or script. A random token whose hash the
 server keeps; the token itself is in an httpOnly cookie or a bearer header.
 Signing out deletes the session, not the account.
+
+**Active admin** — an instance admin who can sign in: not deactivated, and
+with a password set (D-29). One who has not used their setup link yet is an
+admin, but not an active one, and INV-17 does not count them.
 
 **Setup link** — a one-time URL through which the account's owner sets their
 password: on creation, and again when a password is forgotten (D-19). Issued
