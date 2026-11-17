@@ -20,6 +20,16 @@ export const CAPABILITY_DIRECTION_LABEL: Record<CapabilityDirection, string> = {
 // Plain Tailwind tokens rather than the landscape diagram's CSS-variable
 // palette (index.css --landscape-*) — that system exists for the diagram's
 // SVG renderer, not for badges in ordinary DOM.
+// The same colours as a fill, for a capability drawn as a tile (the value
+// stream diagram's Direction lens). Light enough that the tile's text stays
+// the foreground colour.
+export const CAPABILITY_DIRECTION_FILL: Record<CapabilityDirection, string> = {
+  INVEST: 'border-emerald-600/40 bg-emerald-500/10',
+  SUSTAIN: 'border-border bg-muted',
+  COMMODITY: 'border-amber-600/40 bg-amber-500/10',
+  SUNSET: 'border-rose-600/40 bg-rose-500/10',
+};
+
 export const CAPABILITY_DIRECTION_STYLE: Record<CapabilityDirection, string> = {
   INVEST: 'border-emerald-600/40 text-emerald-700 dark:text-emerald-400',
   SUSTAIN: 'border-border text-muted-foreground',

@@ -37,13 +37,24 @@ const VALUE_STREAM_QUERY = gql`
 `;
 
 // Scoped to the value stream's own enterprise, not the switcher's current one,
-// so a direct link renders correctly regardless of context.
+// so a direct link renders correctly regardless of context. The enterprise's
+// other streams are what "used by other streams" is counted from.
 const STREAM_CAPABILITIES_QUERY = gql`
   query ValueStreamCapabilities($enterpriseId: String!) {
     businessCapabilities(enterpriseId: $enterpriseId) {
       id
       name
       description
+      direction
+    }
+    valueStreams(enterpriseId: $enterpriseId) {
+      id
+      name
+      stages {
+        id
+        name
+        capabilityIds
+      }
     }
   }
 `;
@@ -54,6 +65,7 @@ interface ValueStreamDetailData {
 
 interface StreamCapabilitiesData {
   businessCapabilities: ValueStreamCapability[];
+  valueStreams: ValueStream[];
 }
 
 function ValueStreamDetailRoute() {
@@ -132,7 +144,14 @@ function ValueStreamDetailRoute() {
         <p className="mb-4 text-sm text-muted-foreground">{stream.description}</p>
       )}
 
-      <ValueStreamDiagram stream={stream} capabilities={capsData?.businessCapabilities ?? []} />
+      {/* Keyed by the stream: following "other value streams" to another
+          stream starts it fresh, with its own first stage selected. */}
+      <ValueStreamDiagram
+        key={stream.id}
+        stream={stream}
+        capabilities={capsData?.businessCapabilities ?? []}
+        streams={capsData?.valueStreams ?? [stream]}
+      />
 
       <ValueStreamFormSheet
         open={sheetOpen}
