@@ -71,22 +71,6 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
 
 ## Foundation
 
-- **Round-trip test on export and import** (T1.5) — export, import into an
-  empty database, export again, compare. One test covering the widest surface
-  in the codebase, and it guards the exact path private models are restored
-  from. Include a version-0 bundle (no `formatVersion`) so the migration chain
-  in `data-bundle.format.ts` is exercised, a newer version being refused, and
-  an export by a member of one enterprise while another exists (D-24). The
-  2026-10-13 hand-run of exactly these checks is the script to start from.
-  The harness (T1.3, D-28) and the invariant tests through the services
-  (T1.4) are in; this is the next test on top of them.
-
-- **The invariants through the importer** — the invariant tests call the
-  services. The importer is the other way in and checks the same rules for a
-  whole bundle in `data-bundle.validator.ts`, which no test reaches yet. One
-  valid bundle and one broken copy per rule, each refused with the row named.
-  Belongs with T1.5, which needs the bundles anyway.
-
 - **Rules without a constraint can be raced** — INV-17 and INV-18 are a
   read followed by a write, with nothing in Postgres behind them: two
   requests at once can each see "another admin exists" and both proceed.
@@ -142,6 +126,17 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   than every push.
 
 ## Model and data
+
+- **The importer does not check INV-7** — found by the export/import tests;
+  skipped test in `apps/api/test/data-exchange/bundle-rules.test.ts`.
+  `data-bundle.validator.ts` checks every other structural invariant but not
+  this one: a bundle's `bpmnXml` is stored whether or not it parses as BPMN
+  2.0, and its `processSteps` are taken as given, not derived from the
+  diagram. ARCHITECTURE.md ("INV-1 … INV-15 are checked") and DATABASE.md
+  both say otherwise. A process imported that way opens a modeller that
+  cannot read its own diagram. Parse the XML during validation (it is
+  asynchronous, the validator is not) and decide whether steps that
+  disagree with the diagram are an error or are replaced.
 
 - **Editing a building block erases its dated organization-unit history** —
   `replaceAssignments()` deletes every `building_block_organization_units`
