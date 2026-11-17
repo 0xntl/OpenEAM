@@ -19,4 +19,5 @@ export {
   Table,
 } from 'drizzle-orm';
 export * from './client';
+export { applyMigrations } from './migrations';
 export * as schema from './schema/index';

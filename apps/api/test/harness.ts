@@ -18,7 +18,8 @@
 //
 // Not reached from here, and so not tested by anything built on this:
 // resolvers, the AuthGuard and everything else that needs an HTTP request;
-// behaviour that depends on two connections (races between requests); and
+// behaviour that depends on two connections (races between requests), for
+// which concurrency.ts gives a test a database of its own (D-31); and
 // DbModule's own wiring, which `pnpm db:test` exercises by booting the API.
 //
 // One connection also means one query at a time. Await service calls one

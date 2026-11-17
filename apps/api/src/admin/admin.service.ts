@@ -9,8 +9,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Database } from '@openeam/db';
-import { eq, schema } from '@openeam/db';
+import type { Database, Transaction } from '@openeam/db';
+import { eq, inArray, schema } from '@openeam/db';
 import {
   AuthService,
   assetVersionOf,
@@ -20,6 +20,7 @@ import {
 import type { EnterpriseRole } from '../auth/policy';
 import type { InstanceRole, Principal } from '../auth/principal';
 import { DATABASE } from '../db.module';
+import { lockMembers } from '../enterprises/enterprises.service';
 import type {
   AdminUser,
   CreateUserInput,
@@ -248,12 +249,11 @@ export class AdminService {
 
   // The last admin cannot step down, otherwise nobody could run the instance.
   async setRole(userId: string, role: InstanceRole): Promise<AdminUser> {
-    const user = await this.requireUser(userId);
-    if (user.instanceRole === 'admin' && role !== 'admin') await this.assertNotLastAdmin(userId);
-    await this.db
-      .update(schema.users)
-      .set({ instanceRole: role })
-      .where(eq(schema.users.id, userId));
+    await this.requireUser(userId);
+    await this.db.transaction(async (tx) => {
+      if (role !== 'admin') await assertNotLastAdmin(tx, userId);
+      await tx.update(schema.users).set({ instanceRole: role }).where(eq(schema.users.id, userId));
+    });
     return this.user(userId);
   }
 
@@ -263,9 +263,9 @@ export class AdminService {
     if (userId === principal.userId) {
       throw new BadRequestException('You cannot deactivate your own account');
     }
-    const user = await this.requireUser(userId);
-    if (disabled && user.instanceRole === 'admin') await this.assertNotLastAdmin(userId);
+    await this.requireUser(userId);
     await this.db.transaction(async (tx) => {
+      if (disabled) await assertNotLastAdmin(tx, userId);
       await tx
         .update(schema.users)
         .set({ disabledAt: disabled ? new Date().toISOString() : null })
@@ -283,42 +283,46 @@ export class AdminService {
   async deleteUser(principal: Principal, userId: string): Promise<boolean> {
     if (userId === principal.userId)
       throw new BadRequestException('You cannot delete your own account');
-    const user = await this.requireUser(userId);
-    if (user.instanceRole === 'admin') await this.assertNotLastAdmin(userId);
+    await this.requireUser(userId);
 
-    const memberships = await this.db.query.enterpriseMembers.findMany({
-      where: (t, { eq: equals }) => equals(t.userId, userId),
-      with: {
-        enterprise: {
-          columns: { name: true },
-          with: { members: { columns: { userId: true, role: true } } },
-        },
-      },
+    return this.db.transaction(async (tx) => {
+      // Admins first, then members: the order every locking path takes.
+      await assertNotLastAdmin(tx, userId);
+
+      const own = await tx
+        .select({ enterpriseId: schema.enterpriseMembers.enterpriseId })
+        .from(schema.enterpriseMembers)
+        .where(eq(schema.enterpriseMembers.userId, userId));
+      const members = await lockMembers(
+        tx,
+        own.map((m) => m.enterpriseId),
+      );
+      const othersIn = (enterpriseId: string) =>
+        members.filter((m) => m.enterpriseId === enterpriseId && m.userId !== userId);
+      // Only the enterprises the account is still in once the lock is held.
+      const memberships = members.filter((m) => m.userId === userId);
+      const stranded = memberships.filter((m) => othersIn(m.enterpriseId).length === 0);
+      if (stranded.length > 0) {
+        throw new BadRequestException(
+          `This account is the only member of ${await enterpriseNames(tx, stranded)} — add another member or delete the enterprise first`,
+        );
+      }
+      const ownerless = memberships.filter(
+        (m) =>
+          m.role === 'owner' && !othersIn(m.enterpriseId).some((other) => other.role === 'owner'),
+      );
+      if (ownerless.length > 0) {
+        throw new BadRequestException(
+          `This account is the only owner of ${await enterpriseNames(tx, ownerless)} — make someone else an owner or delete the enterprise first`,
+        );
+      }
+
+      const [deleted] = await tx
+        .delete(schema.users)
+        .where(eq(schema.users.id, userId))
+        .returning({ id: schema.users.id });
+      return Boolean(deleted);
     });
-    const names = (rows: typeof memberships) =>
-      rows.map((m) => `"${m.enterprise.name}"`).join(', ');
-    const stranded = memberships.filter((m) => m.enterprise.members.length === 1);
-    if (stranded.length > 0) {
-      throw new BadRequestException(
-        `This account is the only member of ${names(stranded)} — add another member or delete the enterprise first`,
-      );
-    }
-    const ownerless = memberships.filter(
-      (m) =>
-        m.role === 'owner' &&
-        !m.enterprise.members.some((other) => other.role === 'owner' && other.userId !== userId),
-    );
-    if (ownerless.length > 0) {
-      throw new BadRequestException(
-        `This account is the only owner of ${names(ownerless)} — make someone else an owner or delete the enterprise first`,
-      );
-    }
-
-    const [deleted] = await this.db
-      .delete(schema.users)
-      .where(eq(schema.users.id, userId))
-      .returning({ id: schema.users.id });
-    return Boolean(deleted);
   }
 
   private async user(id: string): Promise<AdminUser> {
@@ -334,25 +338,51 @@ export class AdminService {
     if (!user) throw new NotFoundException(`User ${id} not found`);
     return user;
   }
+}
 
-  // INV-17. Active means able to sign in: not deactivated, and with a
-  // password. An admin created by another admin has none until the setup
-  // link is used, and if that link ran out after the last usable admin had
-  // stepped down, nobody could issue another (D-29).
-  private async assertNotLastAdmin(userId: string): Promise<void> {
-    const others = await this.db.query.users.findMany({
-      where: (t, { and, eq: equals, isNull, ne: notEq }) =>
-        and(equals(t.instanceRole, 'admin'), notEq(t.id, userId), isNull(t.disabledAt)),
-      columns: { id: true },
-      extras: (t, { sql }) => ({
-        hasPassword: sql<boolean>`${t.passwordHash} is not null`.as('has_password'),
-      }),
-    });
-    if (others.some((other) => other.hasPassword)) return;
-    throw new BadRequestException(
-      others.length > 0
-        ? 'This is the last active admin — the other admin has not set a password yet; wait until they have used their setup link'
-        : 'This is the last active admin — appoint another one first',
-    );
-  }
+// INV-17, for a write that would take `userId` out of the active admins.
+// Active means able to sign in: not deactivated, and with a password. An
+// admin created by another admin has none until the setup link is used, and
+// if that link ran out after the last usable admin had stepped down, nobody
+// could issue another (D-29).
+//
+// The admins are read with a lock held until the transaction ends, so the
+// write that follows the check is decided on what is still true: two admins
+// stepping each other down at once would otherwise each count the other and
+// both succeed. Whether `userId` is an admin at all is read under the same
+// lock, not trusted from an earlier read. Locked in id order so that two of
+// these cannot deadlock; see lockMembers() for what a waiting read sees.
+async function assertNotLastAdmin(tx: Database | Transaction, userId: string): Promise<void> {
+  const t = schema.users;
+  const admins = await tx
+    .select({ id: t.id, disabledAt: t.disabledAt, passwordHash: t.passwordHash })
+    .from(t)
+    .where(eq(t.instanceRole, 'admin'))
+    .orderBy(t.id)
+    .for('no key update');
+  if (!admins.some((admin) => admin.id === userId)) return;
+  const others = admins.filter((admin) => admin.id !== userId && admin.disabledAt === null);
+  if (others.some((other) => other.passwordHash !== null)) return;
+  throw new BadRequestException(
+    others.length > 0
+      ? 'This is the last active admin — the other admin has not set a password yet; wait until they have used their setup link'
+      : 'This is the last active admin — appoint another one first',
+  );
+}
+
+async function enterpriseNames(
+  tx: Database | Transaction,
+  rows: Array<{ enterpriseId: string }>,
+): Promise<string> {
+  const found = await tx
+    .select({ name: schema.enterprises.name })
+    .from(schema.enterprises)
+    .where(
+      inArray(
+        schema.enterprises.id,
+        rows.map((row) => row.enterpriseId),
+      ),
+    )
+    .orderBy(schema.enterprises.name);
+  return found.map((row) => `"${row.name}"`).join(', ');
 }

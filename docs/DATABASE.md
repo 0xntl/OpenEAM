@@ -236,8 +236,8 @@ NULL` (INV-15).
 | INV-13 unit only on teams, same enterprise | `actors_organization_unit_only_for_team_check`, `actors_organization_unit_same_enterprise_fk` |
 | INV-15 one open capability–actor link | `capability_actors_one_open_per_pair_idx` |
 | INV-16 membership | `enterprise_members` primary key and cascades |
-| INV-17 at least one active admin | not expressible; `admin.service.ts` |
-| INV-18 at least one owner per enterprise | not expressible; `enterprises.service.ts`, `admin.service.ts` |
+| INV-17 at least one active admin | not expressible; `admin.service.ts`, checked under a lock on the admins' `users` rows |
+| INV-18 at least one owner per enterprise | not expressible; `enterprises.service.ts`, `admin.service.ts`, checked under a lock on the enterprise's `enterprise_members` rows |
 | INV-2, INV-7, INV-9/11/14 for id-only links, ABB/SBB sides of a realization | services and `data-bundle.validator.ts` |
 
 When a constraint does fire, `common/pg-error.filter.ts` turns it into a 400 or
