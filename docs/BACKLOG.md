@@ -50,13 +50,6 @@ their purpose in [ARCHITECTURE.md](ARCHITECTURE.md)). What remains:
   pushing straight to `main`: every change goes through a pull request, a
   self-merged one included.
 
-- **Rules without a constraint can be raced** — INV-17 and INV-18 are a
-  read followed by a write, with nothing in Postgres behind them: two
-  requests at once can each see "another admin exists" and both proceed.
-  INV-5, INV-12 and INV-15 have a unique index as the last line; these two
-  have none. Needs a lock on the rows read (`SELECT … FOR UPDATE`), and a
-  test with two connections, which the harness does not have (D-28).
-
 - **Browser tests** — Playwright against the test stack (D-27), after T1.3.
   Three projects (phone, tablet, desktop) and to begin with only what a unit
   test cannot see: every route renders without an error, no page is wider

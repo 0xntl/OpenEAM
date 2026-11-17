@@ -7,4 +7,5 @@
 export type { Column } from 'drizzle-orm';
 export { and, eq, inArray, isNull, lt, ne } from 'drizzle-orm';
 export * from './client';
+export { applyMigrations } from './migrations';
 export * as schema from './schema/index';
