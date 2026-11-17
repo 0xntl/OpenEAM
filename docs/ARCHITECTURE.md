@@ -335,10 +335,20 @@ included: a diagram that is not BPMN, and steps that are not the diagram's. Both
 through the controller's methods, so the version migration and the schema
 are in the path.
 
+Two requests at once need two connections and committed rows, which the
+rolled-back transaction cannot give. INV-17 and INV-18 are a check followed
+by a write, with no constraint behind them, so the services read the rows
+they check with a lock (`SELECT … FOR NO KEY UPDATE`) held until they have
+written, and two such requests happen one after the other.
+`test/invariants/concurrent-admins-and-owners.test.ts` proves it on a scratch
+database of its own (`test/concurrency.ts`, D-31): another connection holds
+the rows, both requests start, and they are let go only once both are
+waiting, so each has read before either writes. Of two requests that would
+each be allowed alone, one must be refused.
+
 What these tests do not reach: resolvers and the `AuthGuard` (nothing here
 sends an HTTP request, so `@AdminOnly()` and "sign in required" are
-untested), and anything that needs two connections — the check-then-write
-races behind INV-17 and INV-18, which no constraint backs.
+untested).
 
 ## Example bundles
 

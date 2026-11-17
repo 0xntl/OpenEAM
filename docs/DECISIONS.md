@@ -885,3 +885,62 @@ data".
 
 **Revisit when:** that work is done. It may end with a bundle carrying no
 steps for a process that has a diagram, which would make this check moot.
+
+---
+
+## D-31 · Rules without a constraint lock what they check; races are tested in a scratch database
+
+**Decided:** INV-17 and INV-18 stay rules in the services, but each check
+reads the rows it decides on with `SELECT … FOR NO KEY UPDATE`, in the same
+transaction as the write that follows: the admins' `users` rows for INV-17,
+every `enterprise_members` row of the enterprise for INV-18 (which also
+covers "the last member" of INV-16 when an account is deleted). The tests
+for two requests at once run on a database of their own, created, migrated
+and dropped by the test file (`apps/api/test/concurrency.ts`).
+
+**Why a lock and not a constraint:** "at least one active admin" and "at
+least one owner per enterprise" are about a set of rows, which a unique
+index or check cannot say. A trigger could, but it would be a second copy of
+the rule in SQL, away from the messages the services give, and the importer
+(D-16) would have to stay in step with it too. A lock keeps the rule where it
+is and only makes its check true at the moment of the write.
+
+**Why these rows and not a lock on the enterprise or a single advisory
+lock:** a demotion, a deactivation, a deletion and a password reset all write
+the rows the check reads, so locking those rows makes every one of them wait
+its turn, including writes added later that know nothing about the rule. A
+lock on the enterprise row would serialize only the paths that remember to
+take it. NO KEY UPDATE and not UPDATE, so that inserting a session or a
+building block, which only references these rows, is not held up.
+
+**Why the rows are locked in a fixed order:** two transactions that lock the
+same rows in different orders can deadlock. Every path locks admins before
+members, and within each by id (`lockMembers()` in `enterprises.service.ts`,
+`assertNotLastAdmin()` in `admin.service.ts`).
+
+**Why a scratch database for the race tests:** the harness's rolled-back
+transaction (D-28) is one connection, and two requests on one connection are
+never at the same time; on two connections, neither could see the accounts
+the test made in the other. The race tests have to commit. Doing that in the
+test database would break D-28's promise that it stays as `pnpm db:test`
+made it, and INV-17 needs an instance with exactly the test's admins, which
+the seeded admin rules out. A scratch database starts empty, cannot touch
+the seed, and its name still ends in `_test`.
+
+**Why the race is forced, not hoped for:** whether two requests started
+together interleave is up to timing, so a test that only starts them would
+pass or fail against the bug by luck. The test holds the rows from a third
+connection and lets go only when Postgres reports both requests waiting on a
+lock. Without the fix they have read and decided by then and wait at their
+write; with it, they wait at the read. Against the unfixed services all six
+tests fail.
+
+**What this costs:** membership changes in one enterprise, and changes to
+who is an admin, now queue behind each other. They are rare and short. A
+file built on `concurrency.ts` adds creating and migrating a database, and
+needs the database user to be allowed to create databases, as `pnpm db:test`
+already does.
+
+**Revisit when:** a rule of this kind is added (it should lock what it
+reads, and get a race test); or if a request can ever hold one of these
+locks while waiting on something slow, such as hashing a password.
