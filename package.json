@@ -14,6 +14,8 @@
     "build": "pnpm -r run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "biome check .",
+    "test": "pnpm -r run test",
+    "test:watch": "pnpm --filter @openeam/api test:watch",
     "format": "biome format --write .",
     "check:examples": "node scripts/check-example-icons.mjs",
     "db:generate": "pnpm --filter @openeam/db generate",

@@ -19,14 +19,12 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+// Also loads .env.
+import { root, testDatabaseUrl } from './test-database.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dbRequire = createRequire(join(root, 'packages/db/package.json'));
 const webRequire = createRequire(join(root, 'apps/web/package.json'));
-
-if (existsSync(join(root, '.env'))) process.loadEnvFile(join(root, '.env'));
 
 const HOST = '127.0.0.1';
 const API_PORT = Number(process.env.TEST_API_PORT ?? 4010);
@@ -50,23 +48,17 @@ function fail(message) {
   process.exit(1);
 }
 
-function testDatabaseUrl() {
-  let url;
-  if (process.env.TEST_DATABASE_URL) {
-    url = new URL(process.env.TEST_DATABASE_URL);
-  } else {
-    if (!process.env.DATABASE_URL) fail('DATABASE_URL is not set (copy .env.example to .env).');
-    url = new URL(process.env.DATABASE_URL);
-    url.pathname = `${url.pathname}_test`;
+// The name and the guard on it live in test-database.mjs, which the test
+// suite shares: `reset` drops this database, the suite writes to it.
+function guardedDatabaseUrl() {
+  try {
+    return testDatabaseUrl();
+  } catch (error) {
+    return fail(error.message);
   }
-  // The one guard that matters: `reset` drops this database.
-  if (!url.pathname.endsWith('_test')) {
-    fail(`refusing database "${url.pathname.slice(1)}": the name must end in _test.`);
-  }
-  return url;
 }
 
-const databaseUrl = testDatabaseUrl();
+const databaseUrl = guardedDatabaseUrl();
 const databaseName = decodeURIComponent(databaseUrl.pathname.slice(1));
 
 // Connected to the server's maintenance database, since the test database

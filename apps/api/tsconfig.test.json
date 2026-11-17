@@ -1,0 +1,14 @@
+// Typechecks the tests together with the code they exercise. Separate from
+// tsconfig.json so that `nest build` keeps compiling src/ alone and no test
+// reaches dist/ or the container image.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "../..",
+    // vitest.config.mts and the global setup import the database guard from
+    // scripts/test-database.mjs.
+    "allowJs": true
+  },
+  "include": ["src/**/*", "test/**/*", "vitest.config.mts"]
+}
