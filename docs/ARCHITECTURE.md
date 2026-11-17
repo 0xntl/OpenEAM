@@ -332,7 +332,15 @@ cp .env.example .env
 docker compose up postgres -d
 pnpm db:migrate
 pnpm dev                 # web :3000, api :4000
+pnpm dev:test            # a second instance on 127.0.0.1:3010, see below
 ```
+
+`pnpm dev:test` serves the same working tree against a database of its own
+(`DATABASE_URL`'s name with `_test` appended), seeded with one known admin
+account and every `examples/*.json`; `pnpm db:test` drops and reseeds it.
+Checks that write belong there, not in the development database. The script,
+`scripts/test-stack.mjs`, states the rest; why it is shaped this way is D-27
+in [DECISIONS.md](DECISIONS.md).
 
 Before calling anything done: `pnpm lint` (repo-wide), `pnpm -r typecheck`,
 `pnpm -r build`. There is no test suite yet — that is roadmap T1.3, and it is why
