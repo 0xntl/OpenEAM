@@ -1,9 +1,21 @@
 ---
 name: verify
-description: How to launch and verify the OpenEAM app end-to-end (web + api + db).
+description: How to verify an OpenEAM change with the cheapest sufficient check — tests first, the running app (web + api + db) only when the change needs it.
+model: sonnet
 ---
 
 # Verifying OpenEAM
+
+## Pick the cheapest check that covers the change, and stop there
+
+1. **Docs, tests, comments, config only:** nothing to run. `pnpm lint` if formatting could be off.
+2. **API logic the test suite covers:** `pnpm test` (and `pnpm lint`, typecheck). No stack, no browser.
+3. **API wiring the tests don't reach** (resolvers, guards, a new mutation): one or two GraphQL requests
+   against the test stack with `curl`/`fetch`. No browser.
+4. **Anything a person sees in the web app:** the browser, as below, and only the pages the change touches.
+
+Reuse a stack that is already running instead of starting another; build the API only if API code
+changed since it was built. One pass: if it passes, report and stop. Stop what you started when done.
 
 ## Two instances, pick by what the check does
 
