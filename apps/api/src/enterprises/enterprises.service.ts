@@ -5,8 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { Database } from '@openeam/db';
-import { and, eq, schema } from '@openeam/db';
+import type { Database, Transaction } from '@openeam/db';
+import { and, eq, inArray, schema } from '@openeam/db';
 import { assertCan, type EnterpriseRole } from '../auth/policy';
 import { assertEnterpriseAccess, grantMembership, type Principal } from '../auth/principal';
 import { DATABASE } from '../db.module';
@@ -39,6 +39,51 @@ const DEFAULT_DOMAINS = [
       'Software and hardware capabilities required to support business, data, and application services.',
   },
 ];
+
+export interface LockedMember {
+  enterpriseId: string;
+  userId: string;
+  role: EnterpriseRole;
+}
+
+// The members of the given enterprises, locked until the transaction ends.
+// INV-16 and INV-18 are each a read followed by a write ("is there another
+// owner?", then the demotion). Without the lock, two requests at once could
+// each count the other's owner and both go ahead, leaving none. Every write
+// that could take away an enterprise's last owner or last member reads
+// through this first, so those writes to one enterprise happen one after the
+// other. Rows are locked in one order, enterprise then user, so that two of
+// these cannot deadlock. A row another transaction changed while this one
+// waited is read as that transaction left it, and a deleted one not at all;
+// a member added meanwhile is not seen, which only errs on the safe side.
+// NO KEY UPDATE rather than UPDATE: it does not hold up inserts elsewhere
+// that merely reference these rows.
+export async function lockMembers(
+  tx: Database | Transaction,
+  enterpriseIds: string[],
+): Promise<LockedMember[]> {
+  if (enterpriseIds.length === 0) return [];
+  const t = schema.enterpriseMembers;
+  const rows = await tx
+    .select({ enterpriseId: t.enterpriseId, userId: t.userId, role: t.role })
+    .from(t)
+    .where(inArray(t.enterpriseId, enterpriseIds))
+    .orderBy(t.enterpriseId, t.userId)
+    .for('no key update');
+  return rows.map((row) => ({ ...row, role: row.role as EnterpriseRole }));
+}
+
+// INV-18: an enterprise always has an explicit owner; an admin's implicit
+// ownership does not count, or an admin could strand one by stepping down.
+// `members` are the enterprise's members as lockMembers() read them.
+function assertNotLastOwner(members: LockedMember[], userId: string): void {
+  const otherOwner = members.some((m) => m.role === 'owner' && m.userId !== userId);
+  if (!otherOwner) {
+    throw new BadRequestException(
+      'An enterprise needs at least one owner — make someone else an owner first, or delete the enterprise',
+    );
+  }
+}
 
 @Injectable()
 export class EnterprisesService {
@@ -177,17 +222,18 @@ export class EnterprisesService {
 
     // Adding someone who is already a member sets their role, so it is held
     // to the same rule as setMemberRole (INV-18).
-    const current = await this.members(principal, enterpriseId);
-    const member = current.find((m) => m.userId === user.id);
-    if (member?.role === 'owner' && role !== 'owner') this.assertNotLastOwner(current, user.id);
-
-    await this.db
-      .insert(schema.enterpriseMembers)
-      .values({ enterpriseId, userId: user.id, role })
-      .onConflictDoUpdate({
-        target: [schema.enterpriseMembers.enterpriseId, schema.enterpriseMembers.userId],
-        set: { role },
-      });
+    await this.db.transaction(async (tx) => {
+      const current = await lockMembers(tx, [enterpriseId]);
+      const member = current.find((m) => m.userId === user.id);
+      if (member?.role === 'owner' && role !== 'owner') assertNotLastOwner(current, user.id);
+      await tx
+        .insert(schema.enterpriseMembers)
+        .values({ enterpriseId, userId: user.id, role })
+        .onConflictDoUpdate({
+          target: [schema.enterpriseMembers.enterpriseId, schema.enterpriseMembers.userId],
+          set: { role },
+        });
+    });
     return this.members(principal, enterpriseId);
   }
 
@@ -198,19 +244,21 @@ export class EnterprisesService {
     role: EnterpriseRole,
   ): Promise<EnterpriseMember[]> {
     this.assertManagesMembers(principal, enterpriseId);
-    const current = await this.members(principal, enterpriseId);
-    const member = current.find((m) => m.userId === userId);
-    if (!member) throw new NotFoundException('Not a member of this enterprise');
-    if (member.role === 'owner' && role !== 'owner') this.assertNotLastOwner(current, userId);
-    await this.db
-      .update(schema.enterpriseMembers)
-      .set({ role })
-      .where(
-        and(
-          eq(schema.enterpriseMembers.enterpriseId, enterpriseId),
-          eq(schema.enterpriseMembers.userId, userId),
-        ),
-      );
+    await this.db.transaction(async (tx) => {
+      const current = await lockMembers(tx, [enterpriseId]);
+      const member = current.find((m) => m.userId === userId);
+      if (!member) throw new NotFoundException('Not a member of this enterprise');
+      if (member.role === 'owner' && role !== 'owner') assertNotLastOwner(current, userId);
+      await tx
+        .update(schema.enterpriseMembers)
+        .set({ role })
+        .where(
+          and(
+            eq(schema.enterpriseMembers.enterpriseId, enterpriseId),
+            eq(schema.enterpriseMembers.userId, userId),
+          ),
+        );
+    });
     return this.members(principal, enterpriseId);
   }
 
@@ -223,34 +271,27 @@ export class EnterprisesService {
   ): Promise<EnterpriseMember[]> {
     if (userId !== principal.userId) this.assertManagesMembers(principal, enterpriseId);
     else assertEnterpriseAccess(principal, enterpriseId);
-    const current = await this.members(principal, enterpriseId);
-    const member = current.find((m) => m.userId === userId);
-    if (!member) return current;
-    if (member.role === 'owner') this.assertNotLastOwner(current, userId);
-    await this.db
-      .delete(schema.enterpriseMembers)
-      .where(
-        and(
-          eq(schema.enterpriseMembers.enterpriseId, enterpriseId),
-          eq(schema.enterpriseMembers.userId, userId),
-        ),
-      );
-    // The caller may have just removed themselves; list with what they had.
-    return current.filter((m) => m.userId !== userId);
+    // Listed first: the caller may be removing themselves, and could not
+    // list the members afterwards.
+    const listed = await this.members(principal, enterpriseId);
+    await this.db.transaction(async (tx) => {
+      const current = await lockMembers(tx, [enterpriseId]);
+      const member = current.find((m) => m.userId === userId);
+      if (!member) return;
+      if (member.role === 'owner') assertNotLastOwner(current, userId);
+      await tx
+        .delete(schema.enterpriseMembers)
+        .where(
+          and(
+            eq(schema.enterpriseMembers.enterpriseId, enterpriseId),
+            eq(schema.enterpriseMembers.userId, userId),
+          ),
+        );
+    });
+    return listed.filter((m) => m.userId !== userId);
   }
 
   private assertManagesMembers(principal: Principal, enterpriseId: string): void {
     assertCan(principal, 'members.manage', enterpriseId);
-  }
-
-  // INV-18: an enterprise always has an explicit owner; an admin's implicit
-  // ownership does not count, or an admin could strand one by stepping down.
-  private assertNotLastOwner(members: EnterpriseMember[], userId: string): void {
-    const otherOwner = members.some((m) => m.role === 'owner' && m.userId !== userId);
-    if (!otherOwner) {
-      throw new BadRequestException(
-        'An enterprise needs at least one owner — make someone else an owner first, or delete the enterprise',
-      );
-    }
   }
 }
