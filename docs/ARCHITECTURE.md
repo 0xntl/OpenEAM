@@ -346,6 +346,15 @@ the rows, both requests start, and they are let go only once both are
 waiting, so each has read before either writes. Of two requests that would
 each be allowed alone, one must be refused.
 
+`test/conformance/field-inventory.ts` lists every column of every model table
+and, for the web app's list, detail, filter and sort, whether the column
+reaches it, and if not, why: a `gap` (known, waiting) or an `exempt` (decided
+it does not belong there). `field-inventory.test.ts` fails when a column has
+no entry, when an entry names a column that is gone, and when a model column
+is missing from the bundle schema. So a new column cannot land without
+someone deciding where it is meant to be used. What the entries claim about
+the pages is kept true by hand until the browser tests can check it.
+
 What these tests do not reach: resolvers and the `AuthGuard` (nothing here
 sends an HTTP request, so `@AdminOnly()` and "sign in required" are
 untested).
