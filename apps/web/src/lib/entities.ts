@@ -79,6 +79,7 @@ export interface ValueStreamCapability {
   id: string;
   name: string;
   description?: string | null;
+  direction?: CapabilityDirection | null;
 }
 
 export interface ValueStreamStage {
